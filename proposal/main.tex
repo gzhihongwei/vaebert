@@ -1,0 +1,94 @@
+\documentclass[11pt]{article}
+
+\usepackage{graphicx}
+%Import the natbib package and sets a bibliography style
+\usepackage[colorlinks]{hyperref}
+\usepackage[square,numbers]{natbib}
+\bibliographystyle{abbrvnat}
+\title{Shape Generation from Text using VAEBERT and GLIDE}
+\author{
+    Alexandru Munteanu
+    \and
+    Yi Wei
+    \and
+    George Z. Wei       
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\paragraph*{Project description.}
+
+% \begin{itemize}
+%     \item Describe the project you plan to implement
+%     \begin{itemize}
+%         \item What is its goal (or goals)?
+%     \end{itemize}
+%     \item Describe the input and output of the method
+%     \item What type of deep architecture are you planning to use?
+%     \begin{itemize}
+%         \item If you want to show any images (e.g., sketches, screenshots, etc) to explain your plan better, you are more than welcome to do so!
+%     \end{itemize}
+% \end{itemize}
+
+The goal of our project is to generate 3D shapes from text descriptions. We would like to use (at inference time) a variational autoencoder to decode the description embedding generated with BERT \cite{bert} or some Transformer \cite{transformer} into a 3D shape representation. Additionally, we will explore the modification of GLIDE \cite{glide} to synthesize 3D shapes. We will use PartNet \cite{partnet} to train and evaluate our project.
+
+\paragraph*{Related work.}
+
+% \begin{itemize}
+%     \item You may briefly describe prior work related to your project e.g., what is (are) the paper(s) you are going to follow/use/re-implement?
+% \end{itemize}
+
+There has been previous work done on large-scale 3D shape datasets such as ShapeNet \cite{shapenet}, which has 51,300 3D models with textures consisting of 55 classes. PartNet \cite{partnet} is a 24-category, 26,671 model subset of ShapeNet with hierarchically segmented parts for each model (573,585 parts total).
+
+For text-to-shape generation, Text2Shape \cite{text2shape} was the first work on this task. Specifically, Text2Shape learns shared embeddings between models of furniture and their text descriptions. They then used used the embeddings to generate colored shapes through a Wasserstein GAN. Following this work, StructureNet \cite{structurenet} represented shapes through a hierarchical n-array graph. Then it uses a VAE to encode the graphs as latent vectors and decode back to graphs which can reconstruct shapes. In ``AI for 3D Generative Design" \cite{aifgd}, voxels are created from the shape models and annotations from the part hierarchies of the top 11 classes in PartNet. Using a VAE and GRU trained with GloVe embeddings of the descriptions, the author behind the paper created a system to generate voxels of shapes. Modern works in the text-to-shape generation space rely primarily on CLIP \cite{clip}, such as \cite{clipforge, dream}. As of today, GLIDE \cite{glide} has been shown to outperform CLIP while using less than a third of the parameters, so it is only natural to explore using GLIDE to synthesize 3D objects.
+
+
+\paragraph*{Datasets and evaluation.}
+
+% Deep learning methods require datasets to be trained and evaluated on.
+% \begin{itemize}
+%     \item What dataset(s) are you planning to use?\\
+%     \item What metrics are you going to use to evaluate performance?\\
+%     chamfer distance
+% \end{itemize}
+
+The dataset that we plan to use in this project is PartNet \cite{partnet}. Specifically, we will be using the shapes and annotations from its part hierarchy to generate textual descriptions. If necessary, preprocessing will be done on the shapes themselves to make them more conducive to deep learning.
+% We are also considering using voxilizations of ShapeNet 3D models if we need additional data.
+We plan on using an ensemble of evaluation metrics on the text-conditioned generated 3D shapes, such as Chamfer Distance and Earth Mover's Distance.
+  
+
+\paragraph{Split of the work.}
+
+% \begin{itemize}
+%     \item Provide a rough breakdown of the tasks each group member will focus on.
+% \end{itemize}
+
+% Hyperparameter search (not super important)
+
+Our preliminary outline of the tasks to be done are below.
+
+\begin{enumerate}
+    \item Preprocess PartNet hierarchy into textual descriptions.
+    \item Preprocess PartNet shapes into some sort of 3D representation.
+    \item Implement and train the VAE using PyTorch.
+    \item Fine-tune BERT to regress the representation of the \verb|[CLS]| vector to the bottleneck vector learned in the VAE.
+    \item Get BERT embeddings for each textual description and train some Transformer architectures from scratch to regress the bottleneck vector.
+    \item Use best model on development/validation set to evaluate the approach on the test set.
+    \item Modify GLIDE to generate a 3D representation and retrain.
+\end{enumerate}
+
+The tasks that each member will do are below.
+
+\begin{itemize}
+    \item Alexandru -- 2, 5, 6
+    \item Yi -- 1, 4, 6
+    \item George -- 3, 7, 6
+\end{itemize}
+
+\small
+\bibliography{references}
+
+\end{document}
