@@ -127,3 +127,12 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ignore zips
+*.zip
+
+# pdfs
+*.pdf
+
+# ignore data folder
+data/
