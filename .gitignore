@@ -127,3 +127,20 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ignore zips
+*.zip
+*.7z
+
+# ignore hdf5 files
+*.hdf5
+
+# ignore json files
+*.json
+
+# pdfs
+*.pdf
+
+# ignore data folder
+data/
+model_data/
