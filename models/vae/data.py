@@ -14,11 +14,13 @@ class PartNetVoxelDataset(Dataset):
         self.data_path = data_path
 
         with open(os.path.join(self.data_path, "binvox_metadata.json"), "r") as f:
-            self.length = 500  # len(json.load(f)["cat_ids"])
+            self.length = len(json.load(f)["cat_ids"])
 
     def __getitem__(self, index: int) -> np.ndarray:
         if not hasattr(self, "shapenet"):
-            self.shapenet = h5py.File(self.data_path, "r")["shapes"]
+            self.shapenet = h5py.File(
+                os.path.join(self.data_path, "binvox_data.hdf5"), "r"
+            )["shapes"]
 
         return self.shapenet[index][np.newaxis, ...]
 

@@ -159,12 +159,12 @@ class VAE(nn.Module):
         return mean, logvar
 
     def reparameterize(self, mean, logvar):
-        eps = self.N.sample(mean.shape)
+        eps = self.N.sample(mean.shape).to(mean.device)
         return eps * torch.exp(logvar * 0.5) + mean
 
     def decode(self, z, apply_sigmoid=False):
         z = self.latent_gen(z)
-        z = z.reshape(-1, self.reshape_channels, *((self.gen_init_size,)*3))
+        z = z.reshape(-1, self.reshape_channels, *((self.gen_init_size,) * 3))
         logits = self.gen_model(z)
         if apply_sigmoid:
             probs = torch.sigmoid(logits)
@@ -174,7 +174,7 @@ class VAE(nn.Module):
     def log_normal_pdf(self, sample, mean, logvar):
         if not isinstance(logvar, torch.Tensor):
             logvar = torch.tensor(logvar)
-            
+
         log2pi = torch.log(torch.tensor(2.0 * torch.pi))
         return (
             -0.5 * ((sample - mean) ** 2.0 * torch.exp(-logvar) + logvar + log2pi)
