@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+import sys
 
 import numpy as np
 import torch
@@ -157,7 +158,8 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok=True)
 
     logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s", level=logging.INFO
+        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s", level=logging.INFO,
+        stream=sys.stdout
     )
     logger = logging.getLogger(__name__)
 
