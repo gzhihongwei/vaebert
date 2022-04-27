@@ -120,10 +120,14 @@ class VAE(nn.Module):
             nn.Linear(256 * ((self.gen_init_size // 2) ** 3), 2 * self.latent_dim)
         )
 
-        self.latent_gen = nn.Linear(self.latent_dim, (self.gen_init_size**3) * 20)
+        self.latent_gen = nn.Linear(
+            self.latent_dim, (self.gen_init_size**3) * self.reshape_channels
+        )
 
         self.gen_model = nn.Sequential(
-            *convtranspose3d_same_padding(20, 256, self.gen_init_size, 4, 2),
+            *convtranspose3d_same_padding(
+                self.reshape_channels, 256, self.gen_init_size, 4, 2
+            ),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
             *convtranspose3d_same_padding(256, 128, self.gen_init_size * 2, 4, 2),
@@ -185,7 +189,10 @@ class VAE(nn.Module):
         z = self.reparameterize(mean, logvar)
         x_logit = self.decode(z)
 
-        logpx_z = -F.binary_cross_entropy_with_logits(input=x_logit, target=x)
+        cross_ent = F.binary_cross_entropy_with_logits(
+            input=x_logit, target=x, reduction="none"
+        )
+        logpx_z = -cross_ent.sum(dim=(1, 2, 3, 4))
         logpz = self.log_normal_pdf(z, 0.0, 0.0)
         logqz_x = self.log_normal_pdf(z, mean, logvar)
         loss = (logqz_x - logpz - logpx_z).mean()
