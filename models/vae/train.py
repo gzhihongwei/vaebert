@@ -156,10 +156,15 @@ if __name__ == "__main__":
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    logging.basicConfig(format="%(asctime)s:%(name)s:%(levelname)s: %(message)s")
+    logging.basicConfig(
+        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s", level=logging.INFO
+    )
     logger = logging.getLogger(__name__)
 
+    logger.info(args)
+
     device = torch.device(args.device if args.local_rank == -1 else args.local_rank)
+    logger.info(f"Using device: {device}")
 
     dataset = PartNetVoxelDataset(args.input_path)
 
@@ -187,4 +192,5 @@ if __name__ == "__main__":
     optimizer = optim.Adam(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
+    logger.info("Starting to train")
     train(model, train_loader, test_loader, args, device, logger, optimizer)
