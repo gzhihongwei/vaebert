@@ -16,12 +16,12 @@ from data import PartNetVoxelDataset
 from vae import VAE
 
 
-def train(model, train_dataloader, test_dataloader, args, device, logger, optimizer):
+def train(model, train_dataloader, test_dataloader, args, logger, optimizer):
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
         for i, voxels in tqdm(enumerate(train_dataloader, start=1), leave=False):
             optimizer.zero_grad()
-            voxels = voxels.float().to(device)
+            voxels = voxels.float().to(args.device)
             loss, _ = model(voxels)
             logger.info(
                 f"Epoch: [{epoch}/{args.epochs}], Batch: [{i}/{len(train_dataloader)}], Loss: {loss.item():.3f}"
@@ -30,7 +30,7 @@ def train(model, train_dataloader, test_dataloader, args, device, logger, optimi
             optimizer.step()
 
         if epoch % args.test_interval:
-            test(model, epoch, test_dataloader, device, logger)
+            test(model, epoch, test_dataloader, args.device, logger)
 
         torch.save(
             model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
@@ -158,17 +158,20 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok=True)
 
     logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s", level=logging.INFO,
-        stream=sys.stdout
+        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
     )
     logger = logging.getLogger(__name__)
 
     logger.info(args)
 
-    device = torch.device(args.device if args.local_rank == -1 else args.local_rank)
-    logger.info(f"Using device: {device}")
+    args.device = torch.device(
+        args.device if args.local_rank == -1 else args.local_rank
+    )
+    logger.info(f"Using device: {args.device}")
 
-    dataset = PartNetVoxelDataset(args.input_path)
+    dataset = PartNetVoxelDataset(os.path.join(args.input_path, "partnet_data.h5"))
 
     with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
         train_indices = json.load(f)
@@ -190,9 +193,9 @@ if __name__ == "__main__":
         shuffle=False,
         num_workers=args.num_workers,
     )
-    model = VAE(args.latent_dim, args.vox_size).to(device)
+    model = VAE(args.latent_dim, args.vox_size).to(args.device)
     optimizer = optim.Adam(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
     logger.info("Starting to train")
-    train(model, train_loader, test_loader, args, device, logger, optimizer)
+    train(model, train_loader, test_loader, args, logger, optimizer)
