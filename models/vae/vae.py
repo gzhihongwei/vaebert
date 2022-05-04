@@ -196,4 +196,4 @@ class VAE(nn.Module):
         logpz = self.log_normal_pdf(z, 0.0, 0.0)
         logqz_x = self.log_normal_pdf(z, mean, logvar)
         loss = (logqz_x - logpz - logpx_z).mean()
-        return loss, x_logit
+        return loss, z
