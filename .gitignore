@@ -144,3 +144,8 @@ dmypy.json
 # ignore data folder
 data/
 model_data/
+ShapeNetCore.v2/
+data_v0/
+*.binvox
+*.pt
+*.exe
