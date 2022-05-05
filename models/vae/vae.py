@@ -120,10 +120,14 @@ class VAE(nn.Module):
             nn.Linear(256 * ((self.gen_init_size // 2) ** 3), 2 * self.latent_dim)
         )
 
-        self.latent_gen = nn.Linear(self.latent_dim, (self.gen_init_size**3) * 20)
+        self.latent_gen = nn.Linear(
+            self.latent_dim, (self.gen_init_size**3) * self.reshape_channels
+        )
 
         self.gen_model = nn.Sequential(
-            *convtranspose3d_same_padding(20, 256, self.gen_init_size, 4, 2),
+            *convtranspose3d_same_padding(
+                self.reshape_channels, 256, self.gen_init_size, 4, 2
+            ),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
             *convtranspose3d_same_padding(256, 128, self.gen_init_size * 2, 4, 2),
@@ -159,12 +163,12 @@ class VAE(nn.Module):
         return mean, logvar
 
     def reparameterize(self, mean, logvar):
-        eps = self.N.sample(mean.shape)
+        eps = self.N.sample(mean.shape).to(mean.device)
         return eps * torch.exp(logvar * 0.5) + mean
 
     def decode(self, z, apply_sigmoid=False):
         z = self.latent_gen(z)
-        z = z.reshape(-1, self.reshape_channels, *((self.gen_init_size,)*3))
+        z = z.reshape(-1, self.reshape_channels, *((self.gen_init_size,) * 3))
         logits = self.gen_model(z)
         if apply_sigmoid:
             probs = torch.sigmoid(logits)
@@ -174,7 +178,7 @@ class VAE(nn.Module):
     def log_normal_pdf(self, sample, mean, logvar):
         if not isinstance(logvar, torch.Tensor):
             logvar = torch.tensor(logvar)
-            
+
         log2pi = torch.log(torch.tensor(2.0 * torch.pi))
         return (
             -0.5 * ((sample - mean) ** 2.0 * torch.exp(-logvar) + logvar + log2pi)
@@ -185,8 +189,11 @@ class VAE(nn.Module):
         z = self.reparameterize(mean, logvar)
         x_logit = self.decode(z)
 
-        logpx_z = -F.binary_cross_entropy_with_logits(input=x_logit, target=x)
+        cross_ent = F.binary_cross_entropy_with_logits(
+            input=x_logit, target=x, reduction="none"
+        )
+        logpx_z = -cross_ent.sum(dim=(1, 2, 3, 4))
         logpz = self.log_normal_pdf(z, 0.0, 0.0)
         logqz_x = self.log_normal_pdf(z, mean, logvar)
         loss = (logqz_x - logpz - logpx_z).mean()
-        return loss, x_logit
+        return loss, z

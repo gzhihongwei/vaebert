@@ -1,12 +1,14 @@
 import argparse
-from distutils.debug import DEBUG
+import json
 import logging
 import os
+import sys
 
+import numpy as np
 import torch
 import torch.optim as optim
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from tqdm import tqdm
 
@@ -14,23 +16,43 @@ from data import PartNetVoxelDataset
 from vae import VAE
 
 
-def train(model, dataloader, args, device, logger, optimizer):
-    model.train()
-
-    for epoch in range(args.epochs):
-        for i, voxels in tqdm(enumerate(dataloader)):
+def train(model, train_dataloader, test_dataloader, args, logger, optimizer):
+    for epoch in tqdm(range(1, args.epochs + 1)):
+        model.train()
+        for i, voxels in tqdm(enumerate(train_dataloader, start=1), leave=False):
             optimizer.zero_grad()
-            voxels = voxels.float().to(device)
+            voxels = voxels.float().to(args.device)
             loss, _ = model(voxels)
             logger.info(
-                f"Epoch: [{epoch + 1}/{args.epochs}], Batch: [{i+1}/{len(dataloader)}] Loss: {loss.item()}"
+                f"Epoch: [{epoch}/{args.epochs}], Batch: [{i}/{len(train_dataloader)}], Loss: {loss.item():.3f}"
             )
             loss.backward()
             optimizer.step()
 
+        if epoch % args.test_interval:
+            test(model, epoch, test_dataloader, args.device, logger)
+
         torch.save(
-            model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch + 1}.pt")
+            model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
         )
+
+
+def test(model, epoch, test_dataloader, device, logger):
+    model.eval()
+
+    losses = []
+
+    for voxels in test_dataloader:
+        voxels = voxels.float().to(device)
+
+        with torch.no_grad():
+            loss, _ = model(voxels)
+
+        losses.append(loss.item())
+
+    test_loss = np.mean(losses)
+
+    logger.info(f"Test loss after epoch {epoch}: {test_loss:.3f}")
 
 
 if __name__ == "__main__":
@@ -44,15 +66,18 @@ if __name__ == "__main__":
         "-input",
         "--input_path",
         default=os.path.join(
-            os.path.abspath(__file__), "..", "shapenet", "binvox_data.hdf5"
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
+            "shapenet",
         ),
         type=str,
-        help="Path to the voxel hdf5.",
+        help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(os.path.abspath(__file__), "checkpoints"),
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
         type=str,
         help="The output directory to put saved checkpoints.",
     )
@@ -97,7 +122,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=0,
+        default=2,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
@@ -111,21 +136,66 @@ if __name__ == "__main__":
         type=str,
         help="Which device to put everything on",
     )
+    parser.add_argument(
+        "-save_int",
+        "--save_interval",
+        default=1,
+        type=int,
+        help="The number of epochs to wait before saving a checkpoint.",
+    )
+    parser.add_argument(
+        "-test_int",
+        "--test_interval",
+        default=2,
+        type=int,
+        help="The number of epochs to wait before trying the test set",
+    )
     args = parser.parse_args()
+
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    logging.basicConfig(format="%(asctime)s:%(name)s:%(levelname)s: %(message)s")
+    logging.basicConfig(
+        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s",
+        level=logging.INFO,
+        stream=sys.stdout,
+    )
     logger = logging.getLogger(__name__)
 
-    device = torch.device(args.device if args.local_rank == -1 else args.local_rank)
+    logger.info(args)
 
-    dataset = PartNetVoxelDataset(args.input_path)
-    trainloader = DataLoader(
-        dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
+    args.device = torch.device(
+        args.device if args.local_rank == -1 else args.local_rank
     )
-    model = VAE(args.latent_dim, args.vox_size).to(device)
+    logger.info(f"Using device: {args.device}")
+
+    dataset = PartNetVoxelDataset(os.path.join(args.input_path, "partnet_data.h5"))
+
+    with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
+        train_indices = json.load(f)
+
+    with open(os.path.join(args.input_path, "test_indexes.json"), "r") as f:
+        test_indices = json.load(f)
+
+    train_dataset = Subset(dataset, train_indices)
+    test_dataset = Subset(dataset, test_indices)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+    )
+    model = VAE(args.latent_dim, args.vox_size).to(args.device)
     optimizer = optim.Adam(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
-    train(model, trainloader, args, device, logger, optimizer)
+    logger.info("Starting to train")
+    train(model, train_loader, test_loader, args, logger, optimizer)
