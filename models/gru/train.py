@@ -25,8 +25,9 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
             torch.zeros(2, args.batch_size, 128).to(args.device),
             torch.zeros(2, args.batch_size, 256).to(args.device),
         ]
-        for i, (captions, latents) in tqdm(
-            enumerate(train_dataloader, start=1),
+        losses = []
+        for captions, latents in tqdm(
+            train_dataloader,
             total=len(train_dataloader),
             leave=False,
         ):
@@ -38,11 +39,11 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
             seq_lengths = inputs["attention_mask"].sum(dim=1).cpu()
             output, hidden_states = model(bert_embed, seq_lengths, hidden_states)
             loss = criterion(output, latents.to(args.device))
-            logger.info(
-                f"Epoch: [{epoch}/{args.epochs}], Batch: [{i}/{len(train_dataloader)}], Loss: {loss.item():.3f}"
-            )
+            losses.append(loss.item())
             loss.backward()
             optimizer.step()
+
+        logger.info(f"Epoch: [{epoch}/{args.epochs}], Loss: {np.mean(losses):.3f}")
 
         if epoch % args.save_interval == 0:
             torch.save(
@@ -105,14 +106,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-epochs",
         "--epochs",
-        default=20000,
+        default=1000,
         type=int,
         help="The number of epochs to train the GRUEncoder for.",
     )
     parser.add_argument(
         "-batch",
         "--batch_size",
-        default=2,
+        default=64,
         type=int,
         help="The batch size to use in the dataloader.",
     )
