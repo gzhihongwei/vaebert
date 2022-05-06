@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class GRUEncoder(nn.Module):
-    def __init__(self, latent_dim):
+    def __init__(self, bert_hidden_size, latent_dim):
         super().__init__()
 
         dropout_rate = 0.15
@@ -12,7 +12,7 @@ class GRUEncoder(nn.Module):
         self.dropout = nn.Dropout2d(dropout_rate)
 
         self.gru1 = nn.GRU(
-            input_size=self.bert.hidden_size,
+            input_size=bert_hidden_size,
             hidden_size=64,
             batch_first=True,
             bidirectional=True,
