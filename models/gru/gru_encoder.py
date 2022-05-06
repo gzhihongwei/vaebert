@@ -4,6 +4,8 @@ import torch.nn as nn
 
 class GRUEncoder(nn.Module):
     def __init__(self, latent_dim):
+        super().__init__()
+
         dropout_rate = 0.15
 
         # In place of Keras's SpatialDropout1D: https://github.com/starstorms9/shape/blob/master/archive/text.py#L23
