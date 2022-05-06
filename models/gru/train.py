@@ -163,7 +163,7 @@ if __name__ == "__main__":
         num_workers=args.num_workers,
         collate_fn=collate_fn,
     )
-    model = GRUEncoder(args.latent_dim, args.vox_size).to(args.device)
+    model = GRUEncoder(args.latent_dim).to(args.device)
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     bert = BertModel.from_pretrained("bert-base-uncased").to(args.device)
 
