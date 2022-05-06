@@ -35,7 +35,7 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
             bert_embed = bert(**inputs).last_hidden_state
             seq_lengths = inputs["attention_mask"].sum(dim=1).cpu()
             output, hidden_states = model(bert_embed, seq_lengths, hidden_states)
-            loss = criterion(output, latents)
+            loss = criterion(output, latents.to(args.device))
             logger.info(
                 f"Epoch: [{epoch}/{args.epochs}], Batch: [{i}/{len(train_dataloader)}], Loss: {loss.item():.3f}"
             )
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-batch",
         "--batch_size",
-        default=40,
+        default=2,
         type=int,
         help="The batch size to use in the dataloader.",
     )
