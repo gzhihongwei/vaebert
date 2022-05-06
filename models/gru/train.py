@@ -20,7 +20,11 @@ from gru_encoder import GRUEncoder
 def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
     criterion = torch.nn.MSELoss()
     for epoch in tqdm(range(1, args.epochs + 1)):
-        model.train()
+        hidden_states = [
+            torch.zeros(2, args.batch_size, 64).to(args.device),
+            torch.zeros(2, args.batch_size, 128).to(args.device),
+            torch.zeros(2, args.batch_size, 256).to(args.device),
+        ]
         for i, (captions, latents) in tqdm(
             enumerate(train_dataloader, start=1), total=len(train_indices), leave=False
         ):
@@ -30,7 +34,7 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
             ).to(args.device)
             bert_embed = bert(**inputs).last_hidden_state
             seq_lengths = inputs["attention_mask"].sum(dim=1).cpu()
-            output = model(bert_embed, seq_lengths)
+            output, hidden_states = model(bert_embed, seq_lengths, hidden_states)
             loss = criterion(output, latents)
             logger.info(
                 f"Epoch: [{epoch}/{args.epochs}], Batch: [{i}/{len(train_dataloader)}], Loss: {loss.item():.3f}"

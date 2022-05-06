@@ -1,3 +1,5 @@
+from typing import List
+
 import torch
 import torch.nn as nn
 
@@ -38,7 +40,10 @@ class GRUEncoder(nn.Module):
         )
 
     def forward(
-        self, bert_embed: torch.Tensor, seq_lengths: torch.Tensor
+        self,
+        bert_embed: torch.Tensor,
+        seq_lengths: torch.Tensor,
+        hidden_states: List[torch.Tensor] = None,
     ) -> torch.Tensor:
         # https://discuss.pytorch.org/t/spatial-dropout-in-pytorch/21400/2
         bert_embed = bert_embed.permute(0, 2, 1)
@@ -49,13 +54,19 @@ class GRUEncoder(nn.Module):
             bert_embed, seq_lengths, batch_first=True, enforce_sorted=False
         )
 
-        packed_output, last_hidden_states = self.gru1(packed_bert_embed)
-        packed_output, last_hidden_states = self.gru2(packed_output, last_hidden_states)
-        _, last_hidden_states = self.gru3(packed_output, last_hidden_states)
+        packed_output, last_hidden_states1 = self.gru1(
+            packed_bert_embed, hidden_states[0]
+        )
+        packed_output, last_hidden_states2 = self.gru2(packed_output, hidden_states[1])
+        _, last_hidden_states3 = self.gru3(packed_output, hidden_states[2])
         last_hidden_state = torch.cat(
-            (last_hidden_states[-2], last_hidden_states[-1]), dim=1
+            (last_hidden_states3[-2], last_hidden_states3[-1]), dim=1
         )
 
         output = self.fc(last_hidden_state)
 
-        return output
+        return output, [
+            last_hidden_states1.detach(),
+            last_hidden_states2.detach(),
+            last_hidden_states3.detach(),
+        ]
