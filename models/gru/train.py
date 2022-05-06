@@ -46,7 +46,7 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
 
 def collate_fn(batch):
     captions, latents = zip(*batch)
-    return captions, torch.tensor(latents)
+    return list(captions), torch.tensor(latents)
 
 
 if __name__ == "__main__":
