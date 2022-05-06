@@ -16,7 +16,7 @@ class PartNetTextLatentDataset(Dataset):
 
         return (
             self.shapenet["captions"][index].decode(),
-            self.shapenet["latents"][index][np.newaxis, ...],
+            self.shapenet["latents"][index].astype("float32"),
         )
 
     def __len__(self) -> int:
