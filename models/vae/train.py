@@ -16,10 +16,12 @@ from data import PartNetVoxelDataset
 from vae import VAE
 
 
-def train(model, train_dataloader, test_dataloader, args, logger, optimizer):
+def train(model, train_dataloader, args, logger, optimizer):
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
-        for i, voxels in tqdm(enumerate(train_dataloader, start=1), leave=False):
+        for i, voxels in tqdm(
+            enumerate(train_dataloader, start=1), total=len(train_indices), leave=False
+        ):
             optimizer.zero_grad()
             voxels = voxels.float().to(args.device)
             loss, _ = model(voxels)
@@ -29,30 +31,10 @@ def train(model, train_dataloader, test_dataloader, args, logger, optimizer):
             loss.backward()
             optimizer.step()
 
-        if epoch % args.test_interval:
-            test(model, epoch, test_dataloader, args.device, logger)
-
-        torch.save(
-            model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
-        )
-
-
-def test(model, epoch, test_dataloader, device, logger):
-    model.eval()
-
-    losses = []
-
-    for voxels in test_dataloader:
-        voxels = voxels.float().to(device)
-
-        with torch.no_grad():
-            loss, _ = model(voxels)
-
-        losses.append(loss.item())
-
-    test_loss = np.mean(losses)
-
-    logger.info(f"Test loss after epoch {epoch}: {test_loss:.3f}")
+        if epoch % args.save_interval == 0:
+            torch.save(
+                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
+            )
 
 
 if __name__ == "__main__":
@@ -127,9 +109,6 @@ if __name__ == "__main__":
         help="Number of additional subprocesses loading data.",
     )
     parser.add_argument(
-        "--local_rank", default=-1, type=int, help="The local rank to use"
-    )
-    parser.add_argument(
         "-device",
         "--device",
         default="cuda",
@@ -143,13 +122,6 @@ if __name__ == "__main__":
         type=int,
         help="The number of epochs to wait before saving a checkpoint.",
     )
-    parser.add_argument(
-        "-test_int",
-        "--test_interval",
-        default=2,
-        type=int,
-        help="The number of epochs to wait before trying the test set",
-    )
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -158,7 +130,7 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok=True)
 
     logging.basicConfig(
-        format="%(asctime)s:%(name)s:%(levelname)s: %(message)s",
+        format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
         level=logging.INFO,
         stream=sys.stdout,
     )
@@ -166,9 +138,7 @@ if __name__ == "__main__":
 
     logger.info(args)
 
-    args.device = torch.device(
-        args.device if args.local_rank == -1 else args.local_rank
-    )
+    args.device = torch.device(args.device)
     logger.info(f"Using device: {args.device}")
 
     dataset = PartNetVoxelDataset(os.path.join(args.input_path, "binvox.hdf5"))
@@ -176,21 +146,11 @@ if __name__ == "__main__":
     with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
         train_indices = json.load(f)
 
-    with open(os.path.join(args.input_path, "test_indexes.json"), "r") as f:
-        test_indices = json.load(f)
-
     train_dataset = Subset(dataset, train_indices)
-    test_dataset = Subset(dataset, test_indices)
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=args.num_workers,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
         num_workers=args.num_workers,
     )
     model = VAE(args.latent_dim, args.vox_size).to(args.device)
@@ -198,4 +158,4 @@ if __name__ == "__main__":
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
     logger.info("Starting to train")
-    train(model, train_loader, test_loader, args, logger, optimizer)
+    train(model, train_loader, args, logger, optimizer)

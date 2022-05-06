@@ -152,3 +152,6 @@ data_v0/
 *.xml
 *.iml
 .idea/
+
+# MacOS hidden file
+**/.DS_Store
