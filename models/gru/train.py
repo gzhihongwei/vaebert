@@ -26,7 +26,9 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
             torch.zeros(2, args.batch_size, 256).to(args.device),
         ]
         for i, (captions, latents) in tqdm(
-            enumerate(train_dataloader, start=1), total=len(train_indices), leave=False
+            enumerate(train_dataloader, start=1),
+            total=len(train_dataloader),
+            leave=False,
         ):
             optimizer.zero_grad()
             inputs = tokenizer(
