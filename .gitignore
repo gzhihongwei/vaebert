@@ -149,3 +149,6 @@ data_v0/
 *.binvox
 *.pt
 *.exe
+*.xml
+*.iml
+.idea/

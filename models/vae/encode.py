@@ -5,12 +5,12 @@ import h5py
 import numpy as np
 import torch
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 from data import PartNetVoxelDataset
 from vae import VAE
-
+import json
 
 def encode_binvoxes(model, dataloader, args):
     model.eval()
@@ -21,9 +21,10 @@ def encode_binvoxes(model, dataloader, args):
         voxels = voxels.float().to(args.device)
         with torch.no_grad():
             _, z = model(voxels)
+            print(_)
         z = z.cpu().numpy()
         latents = np.concatenate((latents, z))
-
+    print(latents.shape)
     output = h5py.File(args.output_path, "w")
     output.create_dataset("latents", data=latents)
     output.close()
@@ -48,7 +49,7 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),
             "shapenet",
-            "partnet_data.h5",
+            "binvox.hdf5",
         ),
         type=str,
         help="Path to the voxels.",
@@ -61,7 +62,7 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),
             "shapenet",
-            "partnet_data.h5",
+            "latents.hdf5",
         ),
         type=str,
         help="The output path to put saved latent vectors.",
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=2,
+        default=0,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
@@ -97,16 +98,25 @@ if __name__ == "__main__":
         type=str,
         help="Which device to put everything on",
     )
+    
     args = parser.parse_args()
 
-    args.device = torch.device(
-        args.device if args.local_rank == -1 else args.local_rank
-    )
+    args.device = torch.device(args.device)
 
     model = VAE(args.latent_dim, args.vox_size).to(args.device)
     model.load_state_dict(torch.load(args.checkpoint_path, map_location=args.device))
 
     dataset = PartNetVoxelDataset(args.input_path)
+
+    with open(os.path.join(os.path.join(
+            os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            ),
+            "shapenet",
+        ), "test_indexes.json"), "r") as f:
+        test_indices = json.load(f)
+
+    dataset = Subset(dataset, test_indices)
 
     dataloader = DataLoader(
         dataset,
@@ -114,5 +124,6 @@ if __name__ == "__main__":
         shuffle=False,
         num_workers=args.num_workers,
     )
+
 
     encode_binvoxes(model, dataloader, args)

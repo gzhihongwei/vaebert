@@ -7,22 +7,24 @@ import sys
 import numpy as np
 import torch
 import torch.optim as optim
+import torch.nn as nn
 
 from torch.utils.data import DataLoader, Subset
 
 from tqdm import tqdm
 
-from data import PartNetVoxelDataset
-from vae import VAE
-
+from data import PartNetVoxelDataset, PartNetCaptionLatentVectorDataset
+from bert_linear import BertLinearModel
 
 def train(model, train_dataloader, test_dataloader, args, logger, optimizer):
+    mse = nn.MSELoss()
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
-        for i, voxels in tqdm(enumerate(train_dataloader, start=1), leave=False):
+        for i, (captions, latent_vectors) in tqdm(enumerate(train_dataloader, start=1), leave=False):
             optimizer.zero_grad()
-            voxels = voxels.float().to(args.device)
-            loss, _ = model(voxels)
+            latent_vectors = latent_vectors.float().to(args.device)
+            output_vectors = model(captions)
+            loss = mse(output_vectors, latent_vectors)
             logger.info(
                 f"Epoch: [{epoch}/{args.epochs}], Batch: [{i}/{len(train_dataloader)}], Loss: {loss.item():.3f}"
             )
@@ -39,15 +41,15 @@ def train(model, train_dataloader, test_dataloader, args, logger, optimizer):
 
 def test(model, epoch, test_dataloader, device, logger):
     model.eval()
-
+    mse = nn.MSELoss()
     losses = []
 
-    for voxels in test_dataloader:
-        voxels = voxels.float().to(device)
-
+    for captions, latent_vectors in test_dataloader:
+        latent_vectors = latent_vectors.to(args.device)
+        
         with torch.no_grad():
-            loss, _ = model(voxels)
-
+            output_vectors = model(captions)
+            loss = mse(output_vectors, latent_vectors.float())
         losses.append(loss.item())
 
     test_loss = np.mean(losses)
@@ -57,7 +59,7 @@ def test(model, epoch, test_dataloader, device, logger):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Training script for VAE on subset of PartNet"
+        description="Training script for Bert Linear model on subset of PartNet"
     )
     parser.add_argument(
         "-seed", "--seed", default=488, type=int, help="The seed to put into torch."
@@ -77,7 +79,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "bert_linear_checkpoints"),
         type=str,
         help="The output directory to put saved checkpoints.",
     )
@@ -89,12 +91,10 @@ if __name__ == "__main__":
         help="The latent dimension size.",
     )
     parser.add_argument(
-        "-vox", "--vox_size", default=64, type=int, help="The voxel size."
-    )
-    parser.add_argument(
         "-lr",
         "--learning_rate",
-        default=6e-4,
+        # default=6e-4,
+        default=1e-2,
         type=float,
         help="The learning rate to use.",
     )
@@ -166,13 +166,12 @@ if __name__ == "__main__":
 
     logger.info(args)
 
-    args.device = torch.device(
-        args.device if args.local_rank == -1 else args.local_rank
-    )
+    args.device = torch.device(args.device)
+    
     logger.info(f"Using device: {args.device}")
 
-    dataset = PartNetVoxelDataset(os.path.join(args.input_path, "binvox.hdf5"))
-
+    dataset = PartNetCaptionLatentVectorDataset(os.path.join(args.input_path, "binvox.hdf5"), os.path.join(args.input_path, "latents.hdf5"))
+    
     with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
         train_indices = json.load(f)
 
@@ -181,19 +180,20 @@ if __name__ == "__main__":
 
     train_dataset = Subset(dataset, train_indices)
     test_dataset = Subset(dataset, test_indices)
+    
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=args.num_workers,
+        num_workers=0,
     )
     test_loader = DataLoader(
         test_dataset,
         batch_size=args.batch_size,
         shuffle=False,
-        num_workers=args.num_workers,
+        num_workers=0,
     )
-    model = VAE(args.latent_dim, args.vox_size).to(args.device)
+    model = BertLinearModel(args.device, args.latent_dim).to(args.device)
     optimizer = optim.Adam(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
