@@ -20,7 +20,7 @@ def train(model, train_dataloader, args, logger, optimizer):
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
         for i, voxels in tqdm(
-            enumerate(train_dataloader, start=1), total=len(train_indices), leave=False
+            enumerate(train_dataloader, start=1), total=len(train_loader), leave=False
         ):
             optimizer.zero_grad()
             voxels = voxels.float().to(args.device)
