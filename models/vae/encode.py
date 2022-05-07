@@ -12,7 +12,7 @@ from data import PartNetVoxelDataset
 from vae import VAE
 import json
 
-def encode_binvoxes(model, dataloader, args):
+def encode_binvoxes(model, dataloader, args, dataset_file):
     model.eval()
 
     latents = np.empty((0, args.latent_dim))
@@ -24,10 +24,9 @@ def encode_binvoxes(model, dataloader, args):
             print(_)
         z = z.cpu().numpy()
         latents = np.concatenate((latents, z))
-    print(latents.shape)
-    output = h5py.File(args.output_path, "w")
-    output.create_dataset("latents", data=latents)
-    output.close()
+    
+    dataset_file.create_dataset("latents", data=latents)
+    dataset_file.close()
 
 
 if __name__ == "__main__":
@@ -49,7 +48,7 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),
             "shapenet",
-            "binvox.hdf5",
+            "partnet_data.h5",
         ),
         type=str,
         help="Path to the voxels.",
@@ -62,7 +61,7 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),
             "shapenet",
-            "latents.hdf5",
+            "partnet_data.h5",
         ),
         type=str,
         help="The output path to put saved latent vectors.",
@@ -106,7 +105,9 @@ if __name__ == "__main__":
     model = VAE(args.latent_dim, args.vox_size).to(args.device)
     model.load_state_dict(torch.load(args.checkpoint_path, map_location=args.device))
 
-    dataset = PartNetVoxelDataset(args.input_path)
+    dataset_file = h5py.File(args.input_path, "r+")
+    
+    dataset = PartNetVoxelDataset(dataset_file)
 
     with open(os.path.join(os.path.join(
             os.path.dirname(
@@ -125,5 +126,4 @@ if __name__ == "__main__":
         num_workers=args.num_workers,
     )
 
-
-    encode_binvoxes(model, dataloader, args)
+    encode_binvoxes(model, dataloader, args, dataset_file)

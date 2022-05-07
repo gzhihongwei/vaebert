@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=2,
+        default=0,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
@@ -241,4 +241,4 @@ if __name__ == "__main__":
     )
 
     logger.info("Starting to train")
-    train(model, train_loader, test_loader, args, logger, optimizer, scheduler)
+    train(model, tokenizer, train_loader, test_loader, args, logger, optimizer, scheduler)

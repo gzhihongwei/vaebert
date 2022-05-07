@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import h5py
 
 import numpy as np
 import torch
@@ -17,6 +18,10 @@ from vae import VAE
 
 
 def train(model, train_dataloader, args, logger, optimizer):
+    if args.checkpoint_epoch > 0:
+        print("Starting with checkpoint", args.checkpoint_epoch)
+        model.load_state_dict(torch.load(os.path.join(args.output_dir, f"epoch{args.checkpoint_epoch}.pt")))
+    
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
         for i, voxels in tqdm(
@@ -33,7 +38,7 @@ def train(model, train_dataloader, args, logger, optimizer):
 
         if epoch % args.save_interval == 0:
             torch.save(
-                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
+                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch + args.checkpoint_epoch}.pt")
             )
 
 
@@ -95,6 +100,13 @@ if __name__ == "__main__":
         help="The number of epochs to train the VAE for.",
     )
     parser.add_argument(
+        "-checkpoint",
+        "--checkpoint_epoch",
+        default=0,
+        type=int,
+        help="The checkpoint epoch to start with.",
+    )
+    parser.add_argument(
         "-batch",
         "--batch_size",
         default=40,
@@ -104,7 +116,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=2,
+        default=0,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
@@ -140,8 +152,10 @@ if __name__ == "__main__":
 
     args.device = torch.device(args.device)
     logger.info(f"Using device: {args.device}")
-
-    dataset = PartNetVoxelDataset(os.path.join(args.input_path, "binvox.hdf5"))
+    
+    dataset_file = h5py.File(os.path.join(args.input_path, "partnet_data.h5"), "r")
+    
+    dataset = PartNetVoxelDataset(dataset_file)
 
     with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
         train_indices = json.load(f)
@@ -159,3 +173,4 @@ if __name__ == "__main__":
     )
     logger.info("Starting to train")
     train(model, train_loader, args, logger, optimizer)
+    dataset_file.close()
