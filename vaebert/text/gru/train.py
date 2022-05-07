@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
 
-from models.text import PartNetTextLatentDataset
+from vaebert.text import PartNetTextLatentDataset
 from gru_encoder import GRUEncoder
 
 
