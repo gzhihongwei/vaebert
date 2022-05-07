@@ -23,10 +23,10 @@ def encode_binvoxes(model, dataloader, args):
             _, z = model(voxels)
         z = z.cpu().numpy()
         latents = np.concatenate((latents, z))
+        print(latents.shape)
 
-    output = h5py.File(args.input_path, "r+")
-    output.create_dataset("latents", data=latents)
-    output.close()
+    dataloader.dataset.shapenet.create_dataset("latents", data=latents)
+    dataloader.dataset.shapenet.close()
 
 
 if __name__ == "__main__":
