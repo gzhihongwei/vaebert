@@ -24,7 +24,7 @@ def encode_binvoxes(model, dataloader, args):
         z = z.cpu().numpy()
         latents = np.concatenate((latents, z))
 
-    output = h5py.File(args.output_path, "r+")
+    output = h5py.File(args.input_path, "r+")
     output.create_dataset("latents", data=latents)
     output.close()
 
@@ -54,19 +54,6 @@ if __name__ == "__main__":
         help="Path to the voxels.",
     )
     parser.add_argument(
-        "-output",
-        "--output_path",
-        default=os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "shapenet",
-            "partnet_data.h5",
-        ),
-        type=str,
-        help="The output path to put saved latent vectors.",
-    )
-    parser.add_argument(
         "-latent",
         "--latent_dim",
         default=128,
@@ -86,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=0,
+        default=2,
         type=int,
         help="Number of additional subprocesses loading data.",
     )

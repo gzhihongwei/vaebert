@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
-from data import PartNetTextLatentDataset
+from models.text import PartNetTextLatentDataset
 from bert_encoder import BERTEncoder
 
 
@@ -22,7 +22,6 @@ def train(
     model,
     tokenizer,
     train_dataloader,
-    test_dataloader,
     args,
     logger,
     optimizer,
@@ -49,32 +48,10 @@ def train(
             optimizer.step()
             scheduler.step()
 
-        if epoch % args.test_interval:
-            test(model, tokenizer, epoch, test_dataloader, args.device, logger)
-
-        torch.save(
-            model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
-        )
-
-
-def test(model, tokenizer, epoch, test_dataloader, device, logger):
-    model.eval()
-    criterion = nn.MSELoss()
-    losses = []
-
-    for captions, latent_vectors in test_dataloader:
-        inputs = tokenizer(
-            captions, padding=True, truncation=True, return_tensors="pt"
-        ).to(args.device)
-
-        with torch.no_grad():
-            output = model(**inputs)
-            loss = criterion(output, latent_vectors.to(device))
-        losses.append(loss.item())
-
-    test_loss = np.mean(losses)
-
-    logger.info(f"Test loss after epoch {epoch}: {test_loss:.3f}")
+        if epoch % args.save_interval == 0:
+            torch.save(
+                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
+            )
 
 
 def collate_fn(batch):
@@ -104,9 +81,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "bert_linear_checkpoints"
-        ),
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
         type=str,
         help="The output directory to put saved checkpoints.",
     )
@@ -172,13 +147,6 @@ if __name__ == "__main__":
         default=1,
         type=int,
         help="The number of epochs to wait before saving a checkpoint.",
-    )
-    parser.add_argument(
-        "-test_int",
-        "--test_interval",
-        default=2,
-        type=int,
-        help="The number of epochs to wait before trying the test set",
     )
     args = parser.parse_args()
 
