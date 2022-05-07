@@ -13,7 +13,8 @@ class PartNetVoxelDataset(Dataset):
     def __getitem__(self, index: int) -> np.ndarray:
         if not hasattr(self, "shapenet"):
             self.shapenet = h5py.File(self.data_path, "r")["shapes"]
-        return self.shapenet[index]
+
+        return self.shapenet[index][np.newaxis, ...]
 
     def __len__(self) -> int:
         return len(self.shapenet)
