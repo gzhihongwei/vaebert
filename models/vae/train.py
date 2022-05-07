@@ -1,15 +1,15 @@
 import argparse
 import json
 import logging
-import os
 import sys
+
+from pathlib import Path
 
 import numpy as np
 import torch
 import torch.optim as optim
 
 from torch.utils.data import DataLoader, Subset
-
 from tqdm import tqdm
 
 from data import PartNetVoxelDataset
@@ -32,12 +32,12 @@ def train(model, train_dataloader, args, logger, optimizer):
             optimizer.step()
 
         if epoch % args.save_interval == 0:
-            torch.save(
-                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
-            )
+            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
 
 
 if __name__ == "__main__":
+    root_path = Path(__file__).resolve()
+
     parser = argparse.ArgumentParser(
         description="Training script for VAE on subset of PartNet"
     )
@@ -47,20 +47,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-input",
         "--input_path",
-        default=os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "shapenet",
-        ),
-        type=str,
+        default=root_path.parent.parent.parent / "shapenet",
+        type=Path,
         help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
-        type=str,
+        default=root_path.parent / "checkpoints",
+        type=Path,
         help="The output directory to put saved checkpoints.",
     )
     parser.add_argument(
@@ -127,7 +122,7 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
@@ -141,9 +136,9 @@ if __name__ == "__main__":
     args.device = torch.device(args.device)
     logger.info(f"Using device: {args.device}")
 
-    dataset = PartNetVoxelDataset(os.path.join(args.input_path, "binvox.hdf5"))
+    dataset = PartNetVoxelDataset(args.input_path / "partnet_data.h5")
 
-    with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
+    with open(args.input_path / "train_indexes.json", "r") as f:
         train_indices = json.load(f)
 
     train_dataset = Subset(dataset, train_indices)

@@ -1,8 +1,9 @@
 import argparse
 import json
 import logging
-import os
 import sys
+
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -49,9 +50,7 @@ def train(
             scheduler.step()
 
         if epoch % args.save_interval == 0:
-            torch.save(
-                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
-            )
+            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
 
 
 def collate_fn(batch):
@@ -60,6 +59,8 @@ def collate_fn(batch):
 
 
 if __name__ == "__main__":
+    root_path = Path(__file__).resolve()
+
     parser = argparse.ArgumentParser(
         description="Training script for Bert Linear model on subset of PartNet"
     )
@@ -69,20 +70,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-input",
         "--input_path",
-        default=os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "shapenet",
-        ),
-        type=str,
+        default=root_path.parent.parent.parent.parent / "shapenet",
+        type=Path,
         help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
-        type=str,
+        default=root_path.parent / "checkpoints",
+        type=Path,
         help="The output directory to put saved checkpoints.",
     )
     parser.add_argument(
@@ -153,7 +149,7 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
@@ -168,28 +164,17 @@ if __name__ == "__main__":
 
     logger.info(f"Using device: {args.device}")
 
-    dataset = PartNetTextLatentDataset(os.path.join(args.input_path, "partnet_data.h5"))
+    dataset = PartNetTextLatentDataset(args.input_path / "partnet_data.h5")
 
-    with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
+    with open(args.input_path / "train_indexes.json", "r") as f:
         train_indices = json.load(f)
 
-    with open(os.path.join(args.input_path, "test_indexes.json"), "r") as f:
-        test_indices = json.load(f)
-
     train_dataset = Subset(dataset, train_indices)
-    test_dataset = Subset(dataset, test_indices)
 
     train_loader = DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=args.num_workers,
-        collate_fn=collate_fn,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
         num_workers=args.num_workers,
         collate_fn=collate_fn,
     )
@@ -209,4 +194,4 @@ if __name__ == "__main__":
     )
 
     logger.info("Starting to train")
-    train(model, train_loader, test_loader, args, logger, optimizer, scheduler)
+    train(model, train_loader, args, logger, optimizer, scheduler)
