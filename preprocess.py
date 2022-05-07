@@ -1,94 +1,113 @@
 import argparse
-import pickle
-import zipfile
 import json
 import os
+import pickle
+import random
+import zipfile
+
+from pathlib import Path
+
+import binvox_rw
+import h5py
 import numpy as np
 import torch
+
 from scipy import signal
-import h5py
-import binvox_rw
-import random
 
 
 def process_voxel(model, gaussian_kernel):
     vox = model.data.astype(float)
-    
+
     # Verify the sparsity
     sparsity = vox.mean()
     if sparsity < 0.01:
         return None, sparsity
-    elif sparsity < 0.4:
+
+    if sparsity < 0.4:
         vox_with_kernel = signal.convolve(vox, gaussian_kernel, mode="same")
         vox = np.where(vox_with_kernel > 0.1, 1, 0)
-    
+
     # Center the voxels
-    max_vals_by_axis = [np.max(np.max(vox, axis=2), axis=1), np.max(np.max(vox, axis=2), axis=0), np.max(np.max(vox, axis=1), axis=0)]
+    max_vals_by_axis = [
+        np.max(np.max(vox, axis=2), axis=1),
+        np.max(np.max(vox, axis=2), axis=0),
+        np.max(np.max(vox, axis=1), axis=0),
+    ]
 
     for axis_idx in range(3):
         first_significant_idx = 0
         last_significant_idx = 127
-        prev_value = 0
+
         for idx in range(128):
             if round(max_vals_by_axis[axis_idx][idx]) > 0:
                 first_significant_idx = idx
                 break
-                
+
         for idx in reversed(range(128)):
             if round(max_vals_by_axis[axis_idx][idx]) > 0:
                 last_significant_idx = idx
                 break
-                
-        off_center_val = int((128 - (last_significant_idx - first_significant_idx)) / 2) - first_significant_idx
+
+        off_center_val = (
+            int((128 - (last_significant_idx - first_significant_idx)) / 2)
+            - first_significant_idx
+        )
         vox = np.roll(vox, off_center_val, axis=axis_idx)
 
     vox_tensor = torch.tensor(vox).float()
     m = torch.nn.AvgPool3d(2, stride=2)
-    vox_tensor = torch.round(m(vox_tensor.reshape(1, 128, 128, 128)).reshape(64, 64, 64)).bool()
+    vox_tensor = torch.round(
+        m(vox_tensor.reshape(1, 128, 128, 128)).reshape(64, 64, 64)
+    ).bool()
     return vox_tensor, sparsity
 
+
 if __name__ == "__main__":
+    shapenet_path = Path(__file__).resolve().parent / "shapenet"
+    shapenet_path.mkdir(parents=True, exist_ok=True)
+
     parser = argparse.ArgumentParser(
         description="Preprocessing script for loading ShapeNet data"
     )
-    
     parser.add_argument(
-        "-seed", "--seed", default=488, type=int, help="The seed used to shuffle indexes."
+        "-seed",
+        "--seed",
+        default=488,
+        type=int,
+        help="The seed used to shuffle indexes.",
     )
-    
     parser.add_argument(
         "-shapenet",
         "--shapenet_path",
-        default=os.path.join("shapenet", "ShapeNetCore.v2.zip"),
-        type=str,
+        default=shapenet_path / "ShapeNetCore.v2.zip",
+        type=Path,
         help="Path to the shapenet dataset zip.",
     )
-    
     parser.add_argument(
         "-mid2desc",
         "--mid2desc_path",
-        default=os.path.join("shapenet", "mid2desc.pkl"),
-        type=str,
+        default=shapenet_path / "mid2desc.pkl",
+        type=Path,
         help="Path to the model id to description pkl file.",
     )
-    
     parser.add_argument(
         "-output",
         "--output_path",
-        default=os.path.join("shapenet", "partnet_data.h5"),
+        default=shapenet_path / "partnet_data.h5",
         type=str,
         help="Path to the location of the output dataset file.",
     )
-    
+
     args = parser.parse_args()
 
     random.seed(args.seed)
-    
-    with open(args.mid2desc_path, 'rb') as f:
+
+    with open(args.mid2desc_path, "rb") as f:
         model_captions = pickle.load(f, encoding="utf-8")
+
     print("Loading data from ShapeNet zip")
     archive = zipfile.ZipFile(args.shapenet_path)
-    
+
     model_filename_data = []
     for filename in archive.namelist():
         if "solid" in filename:
@@ -99,13 +118,32 @@ if __name__ == "__main__":
                 model_filename_data.append((model_id, cat_id, filename))
     print("Loaded ShapeNet zip")
 
-    used_cat_ids = ['02818832', '02876657', '02880940', '03001627', '03046257', '03325088', '03593526', '03636649', '03642806', '03797390', '04379243']
+    used_cat_ids = [
+        "02818832",
+        "02876657",
+        "02880940",
+        "03001627",
+        "03046257",
+        "03325088",
+        "03593526",
+        "03636649",
+        "03642806",
+        "03797390",
+        "04379243",
+    ]
     models_info = {}
 
     for model_id, cat_id, filename in model_filename_data:
         if model_id not in models_info.keys() and cat_id in used_cat_ids:
-            models_info[model_id] = (model_id, cat_id, model_captions[model_id], filename)
-    models_info = sorted(list(models_info.values()), key=lambda m: str(m[1]) + str(m[0]))
+            models_info[model_id] = (
+                model_id,
+                cat_id,
+                model_captions[model_id],
+                filename,
+            )
+    models_info = sorted(
+        list(models_info.values()), key=lambda m: str(m[1]) + str(m[0])
+    )
     print(len(models_info), "models found with captions.")
 
     model_ids, category_ids, captions, filenames = zip(*models_info)
@@ -116,7 +154,7 @@ if __name__ == "__main__":
     z = np.arange(-6, 7, 1)
     xx, yy, zz = np.meshgrid(x, y, z)
 
-    gaussian_kernel = np.exp(-(xx ** 2 + yy ** 2 + zz ** 2) / (2 * 1 ** 2))
+    gaussian_kernel = np.exp(-(xx**2 + yy**2 + zz**2) / (2 * 1**2))
 
     used_model_ids, used_category_ids, used_captions, used_voxels = [], [], [], []
     num_sparsity_under_001 = 0
@@ -146,21 +184,33 @@ if __name__ == "__main__":
 
     archive.close()
     print("Processed", len(filenames), "voxels.")
-    print(num_sparsity_under_001, "voxels found and ignored with a sparsity less than 0.01.")
-    print(num_sparsity_under_04, "voxels found with an original sparsity less than 0.4.")
+    print(
+        num_sparsity_under_001,
+        "voxels found and ignored with a sparsity less than 0.01.",
+    )
+    print(
+        num_sparsity_under_04, "voxels found with an original sparsity less than 0.4."
+    )
     print(num_sparsity_over_04, "voxels found with an original sparsity over 0.4.")
 
     print("Saving data")
     used_voxels = np.array(used_voxels)
 
-    with h5py.File(args.output_path, 'w') as hf:
+    with h5py.File(args.output_path, "w") as hf:
         hf.create_dataset("shapes", data=used_voxels)
-        np_captions = np.array([str(i).strip() for i in used_captions], dtype=h5py.special_dtype(vlen=str)) 
-        hf.create_dataset('captions', data=np_captions)
-        np_category_ids = np.array([str(i).strip() for i in used_category_ids], dtype=h5py.special_dtype(vlen=str)) 
-        hf.create_dataset('category_ids', data=np_category_ids)
-        np_model_ids = np.array([str(i).strip() for i in used_model_ids], dtype=h5py.special_dtype(vlen=str)) 
-        hf.create_dataset('model_ids', data=np_model_ids)
+        np_captions = np.array(
+            [str(i).strip() for i in used_captions], dtype=h5py.special_dtype(vlen=str)
+        )
+        hf.create_dataset("captions", data=np_captions)
+        np_category_ids = np.array(
+            [str(i).strip() for i in used_category_ids],
+            dtype=h5py.special_dtype(vlen=str),
+        )
+        hf.create_dataset("category_ids", data=np_category_ids)
+        np_model_ids = np.array(
+            [str(i).strip() for i in used_model_ids], dtype=h5py.special_dtype(vlen=str)
+        )
+        hf.create_dataset("model_ids", data=np_model_ids)
 
     current_cat_id = ""
     cat_ids = []
@@ -190,9 +240,10 @@ if __name__ == "__main__":
     print("Number of train indexes:", len(train_indexes))
     print("Number of test indexes:", len(test_indexes))
 
-    with open(os.path.join("shapenet", "train_indexes.json"), 'w') as f:
+    with open(shapenet_path / "train_indexes.json", "w") as f:
         json.dump(train_indexes, f)
-    with open(os.path.join("shapenet", "test_indexes.json"), 'w') as f:
+
+    with open(shapenet_path / "test_indexes.json", "w") as f:
         json.dump(test_indexes, f)
 
     print("Saved data.")
