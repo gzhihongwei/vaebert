@@ -5,12 +5,12 @@ import h5py
 import numpy as np
 import torch
 
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from data import PartNetVoxelDataset
 from vae import VAE
-import json
+
 
 def encode_binvoxes(model, dataloader, args):
     model.eval()
@@ -21,11 +21,10 @@ def encode_binvoxes(model, dataloader, args):
         voxels = voxels.float().to(args.device)
         with torch.no_grad():
             _, z = model(voxels)
-            print(_)
         z = z.cpu().numpy()
         latents = np.concatenate((latents, z))
-    print(latents.shape)
-    output = h5py.File(args.output_path, "w")
+
+    output = h5py.File(args.output_path, "r+")
     output.create_dataset("latents", data=latents)
     output.close()
 
@@ -49,7 +48,7 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),
             "shapenet",
-            "binvox.hdf5",
+            "partnet_data.h5",
         ),
         type=str,
         help="Path to the voxels.",
@@ -62,7 +61,7 @@ if __name__ == "__main__":
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             ),
             "shapenet",
-            "latents.hdf5",
+            "partnet_data.h5",
         ),
         type=str,
         help="The output path to put saved latent vectors.",
@@ -98,7 +97,7 @@ if __name__ == "__main__":
         type=str,
         help="Which device to put everything on",
     )
-    
+
     args = parser.parse_args()
 
     args.device = torch.device(args.device)
@@ -108,22 +107,11 @@ if __name__ == "__main__":
 
     dataset = PartNetVoxelDataset(args.input_path)
 
-    with open(os.path.join(os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "shapenet",
-        ), "test_indexes.json"), "r") as f:
-        test_indices = json.load(f)
-
-    dataset = Subset(dataset, test_indices)
-
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
         shuffle=False,
         num_workers=args.num_workers,
     )
-
 
     encode_binvoxes(model, dataloader, args)
