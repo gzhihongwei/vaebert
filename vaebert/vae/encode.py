@@ -23,7 +23,6 @@ def encode_binvoxes(model, dataloader, args):
             _, z = model(voxels)
         z = z.cpu().numpy()
         latents = np.concatenate((latents, z))
-        print(latents.shape)
 
     dataloader.dataset.shapenet.create_dataset("latents", data=latents)
     dataloader.dataset.shapenet.close()
@@ -93,7 +92,7 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(args.checkpoint_path, map_location=args.device))
 
     dataset = PartNetVoxelDataset(args.input_path)
-
+    
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,

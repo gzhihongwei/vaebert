@@ -155,3 +155,5 @@ data_v0/
 
 # MacOS hidden file
 **/.DS_Store
+*.pkl
+*.h5

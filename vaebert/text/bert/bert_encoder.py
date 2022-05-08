@@ -20,7 +20,7 @@ class BERTEncoder(nn.Module):
         attention_mask: torch.Tensor,
         token_type_ids: torch.Tensor,
     ) -> torch.Tensor:
-        bert_outputs = self.bert_model(
+        bert_outputs = self.bert(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,

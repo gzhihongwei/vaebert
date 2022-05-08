@@ -7,7 +7,6 @@ from torch.utils.data import Dataset
 class PartNetVoxelDataset(Dataset):
     def __init__(self, data_path: str) -> None:
         super().__init__()
-
         self.data_path = data_path
 
     def __getitem__(self, index: int) -> np.ndarray:
