@@ -1,2 +1,8 @@
 h5py
-torch --extra-index-url https://download.pytorch.org/whl/cu113
+matplotlib
+plotly
+seaborn
+scikit-image
+scikit-learn
+torch
+transformers
