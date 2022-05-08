@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
 
-from vaebert import chamfer_dist, earth_mover_dist
+from vaebert import chamfer_dist
 from vaebert.data import PartNetTextVoxelDataset, collate_fn
 from vaebert.text import BERTEncoder, GRUEncoder
 from vaebert.vae import VAE
@@ -50,16 +50,12 @@ def test(bert_encoder, bert, gru_encoder, vae, test_loader, logger, tokenizer):
             seq_lengths = inputs["attention_mask"].sum(dim=1).cpu()
             gru_output, _ = gru_encoder(bert_embed, seq_lengths, hidden_states)
             gru_voxel = torch.sigmoid(vae.decode(gru_output))
-
+        
         metrics["bert"]["chamfer"].append(chamfer_dist(bert_voxel, voxel))
-        metrics["bert"]["emd"].append(earth_mover_dist(bert_voxel, voxel))
         metrics["gru"]["chamfer"].append(chamfer_dist(gru_voxel, voxel))
-        metrics["gru"]["emd"].append(earth_mover_dist(gru_voxel, voxel))
 
     metrics["bert"]["chamfer"] = np.mean(metrics["bert"]["chamfer"])
-    metrics["bert"]["emd"] = np.mean(metrics["bert"]["emd"])
     metrics["gru"]["chamfer"] = np.mean(metrics["gru"]["chamfer"])
-    metrics["gru"]["emd"] = np.mean(metrics["gru"]["emd"])
 
     logger.info(metrics)
 
@@ -128,7 +124,7 @@ if __name__ == "__main__":
 
     bert = BertModel.from_pretrained("bert-base-uncased").to(args.device)
     gru_encoder = GRUEncoder(bert.config.hidden_size, args.latent_dim).to(args.device)
-    bert_encoder.load_state_dict(
+    gru_encoder.load_state_dict(
         torch.load(args.checkpoint_paths[1], map_location=args.device)
     )
 
@@ -137,7 +133,7 @@ if __name__ == "__main__":
 
     dataset = PartNetTextVoxelDataset(args.input_path / "partnet_data.h5")
 
-    with open(args.input_path / "test_indices.json", "r") as f:
+    with open(args.input_path / "test_indexes.json", "r") as f:
         test_indices = json.load(f)
 
     test_dataset = Subset(dataset, test_indices)

@@ -1,14 +1,13 @@
 import numpy as np
 import torch
 
-from emd import earth_mover_dist
 from scipy.spatial import KDTree
 
 
 def chamfer_dist(x, y):
     # convert x and y to binary (integer) torch tensor
-    x = x.cpu().numpy().round().astype(np.int8)
-    y = y.cpu().numpy().round().astype(np.int8)
+    x = x.cpu().numpy().squeeze().round().astype(np.int8)
+    y = y.cpu().numpy().squeeze().round().astype(np.int8)
 
     # create kd-tree for x and y
     x_tree = KDTree(np.transpose(x.nonzero()))
@@ -32,15 +31,3 @@ def chamfer_dist(x, y):
     return d_x.sum() / (x.sum() + np.finfo(float).eps) + d_y.sum() / (
         y.sum() + np.finfo(float).eps
     )
-
-
-def earth_mover_dist(x, y):
-    # convert x and y to binary (integer) torch tensor
-    x = x.cpu().numpy().round().astype(np.int8)
-    y = y.cpu().numpy().round().astype(np.int8)
-
-    x = torch.from_numpy(np.transpose(x.nonzero())).float().cuda()
-    y = torch.from_numpy(np.transpose(y.nonzero())).float().cuda()
-
-    cost = earth_mover_dist(x, y)
-    return cost
