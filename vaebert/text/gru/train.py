@@ -14,8 +14,9 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
 
+from vaebert import collate_fn
 from vaebert.text import PartNetTextLatentDataset
-from gru_encoder import GRUEncoder
+from vaebert.text.gru import GRUEncoder
 
 
 def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
@@ -48,11 +49,6 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
 
         if epoch % args.save_interval == 0:
             torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
-
-
-def collate_fn(batch):
-    captions, latents = zip(*batch)
-    return list(captions), torch.tensor(latents)
 
 
 if __name__ == "__main__":

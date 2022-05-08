@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 
 
-class PartNetTextLatentDataset(Dataset):
+class PartNetTextVoxelDataset(Dataset):
     def __init__(self, data_path: str) -> None:
         super().__init__()
 
@@ -19,7 +19,7 @@ class PartNetTextLatentDataset(Dataset):
 
         return (
             self.shapenet["captions"][index].decode(),
-            self.shapenet["latents"][index].astype("float32"),
+            self.shapenet["shapes"][index],
         )
 
     def __len__(self) -> int:
@@ -27,3 +27,8 @@ class PartNetTextLatentDataset(Dataset):
             self.shapenet = h5py.File(self.data_path, "r")
 
         return len(self.shapenet)
+
+
+def collate_fn(batch):
+    captions, tensors = zip(*batch)
+    return list(captions), torch.from_numpy(np.array(tensors))

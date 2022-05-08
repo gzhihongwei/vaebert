@@ -15,8 +15,9 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
-from models.text import PartNetTextLatentDataset
-from bert_encoder import BERTEncoder
+from vaebert import collate_fn
+from vaebert.text import PartNetTextLatentDataset
+from vaebert.text.bert import BERTEncoder
 
 
 def train(
@@ -53,13 +54,8 @@ def train(
             torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
 
 
-def collate_fn(batch):
-    captions, latents = zip(*batch)
-    return list(captions), torch.tensor(latents)
-
-
 if __name__ == "__main__":
-    root_path = Path(__file__).resolve()
+    root_path = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(
         description="Training script for Bert Linear model on subset of PartNet"
@@ -70,14 +66,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-input",
         "--input_path",
-        default=root_path.parent.parent.parent.parent / "shapenet",
+        default=root_path.parent.parent.parent / "shapenet",
         type=Path,
         help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=root_path.parent / "checkpoints",
+        default=root_path / "checkpoints",
         type=Path,
         help="The output directory to put saved checkpoints.",
     )
