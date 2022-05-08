@@ -201,7 +201,7 @@ if __name__ == "__main__":
     test_loader = DataLoader(
         test_dataset, batch_size=1, shuffle=False, collate_fn=collate_fn
     )
-    test(bert_encoder, bert, gru_encoder, vae, test_loader, logger, tokenizer)
+    test(bert_encoder, bert, gru_encoder, vae, args, test_loader, logger, tokenizer)
 
     with open(args.input_path / "train_indexes.json", "r") as f:
         train_indices = json.load(f)
