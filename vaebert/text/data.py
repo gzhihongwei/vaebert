@@ -2,6 +2,7 @@ from typing import Tuple
 
 import h5py
 import numpy as np
+import torch
 
 from torch.utils.data import Dataset
 
@@ -22,4 +23,7 @@ class PartNetTextLatentDataset(Dataset):
         )
 
     def __len__(self) -> int:
+        if not hasattr(self, "shapenet"):
+            self.shapenet = h5py.File(self.data_path, "r")
+
         return len(self.shapenet)

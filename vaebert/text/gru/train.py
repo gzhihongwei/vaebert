@@ -1,8 +1,9 @@
 import argparse
 import json
 import logging
-import os
 import sys
+
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -13,8 +14,9 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
 
-from data import PartNetTextLatentDataset
-from gru_encoder import GRUEncoder
+from vaebert import collate_fn
+from vaebert.text import PartNetTextLatentDataset
+from vaebert.text.gru import GRUEncoder
 
 
 def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
@@ -46,17 +48,12 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
         logger.info(f"Epoch: [{epoch}/{args.epochs}], Loss: {np.mean(losses):.3f}")
 
         if epoch % args.save_interval == 0:
-            torch.save(
-                model.state_dict(), os.path.join(args.output_dir, f"epoch{epoch}.pt")
-            )
-
-
-def collate_fn(batch):
-    captions, latents = zip(*batch)
-    return list(captions), torch.tensor(latents)
+            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
 
 
 if __name__ == "__main__":
+    root_path = Path(__file__).resolve()
+
     parser = argparse.ArgumentParser(
         description="Training script for VAE on subset of PartNet"
     )
@@ -66,20 +63,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-input",
         "--input_path",
-        default=os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "shapenet",
-        ),
-        type=str,
+        default=root_path.parent.parent.parent.parent / "shapenet",
+        type=Path,
         help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
-        type=str,
+        default=root_path.parent / "checkpoints",
+        type=Path,
         help="The output directory to put saved checkpoints.",
     )
     parser.add_argument(
@@ -143,7 +135,7 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
@@ -157,9 +149,9 @@ if __name__ == "__main__":
     args.device = torch.device(args.device)
     logger.info(f"Using device: {args.device}")
 
-    dataset = PartNetTextLatentDataset(os.path.join(args.input_path, "partnet_data.h5"))
+    dataset = PartNetTextLatentDataset(args.input_path / "partnet_data.h5")
 
-    with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
+    with open(args.input_path / "train_indexes.json", "r") as f:
         train_indices = json.load(f)
 
     train_dataset = Subset(dataset, train_indices)

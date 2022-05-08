@@ -1,10 +1,14 @@
 import numpy as np
+import torch
+
+from emd import earth_mover_dist
 from scipy.spatial import KDTree
+
 
 def chamfer_dist(x, y):
     # convert x and y to binary (integer) torch tensor
-    x = x.round().astype(np.int8)
-    y = y.round().astype(np.int8)
+    x = x.cpu().numpy().round().astype(np.int8)
+    y = y.cpu().numpy().round().astype(np.int8)
 
     # create kd-tree for x and y
     x_tree = KDTree(np.transpose(x.nonzero()))
@@ -22,14 +26,21 @@ def chamfer_dist(x, y):
 
     # for each unique point in one cloud, find the closest point in the other
     # and vice versa
-    d_x, _ = y_tree.query(unique_x, k = 1)
-    d_y, _ = x_tree.query(unique_y, k = 1)
+    d_x, _ = y_tree.query(unique_x, k=1)
+    d_y, _ = x_tree.query(unique_y, k=1)
 
-    return d_x.sum()/(x.sum() + np.finfo(float).eps) + d_y.sum()/(y.sum() + np.finfo(float).eps)
+    return d_x.sum() / (x.sum() + np.finfo(float).eps) + d_y.sum() / (
+        y.sum() + np.finfo(float).eps
+    )
 
-def earth_movers_dist(x, y):
-    pass
-# create test data
-x = np.random.rand(64, 64, 64)
-y = np.random.rand(64, 64, 64)
-print(chamfer_dist(x, y))
+
+def earth_mover_dist(x, y):
+    # convert x and y to binary (integer) torch tensor
+    x = x.cpu().numpy().round().astype(np.int8)
+    y = y.cpu().numpy().round().astype(np.int8)
+
+    x = torch.from_numpy(np.transpose(x.nonzero())).float().cuda()
+    y = torch.from_numpy(np.transpose(y.nonzero())).float().cuda()
+
+    cost = earth_mover_dist(x, y)
+    return cost

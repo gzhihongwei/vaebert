@@ -1,16 +1,16 @@
 import argparse
 import json
 import logging
-import os
 import sys
 import h5py
+
+from pathlib import Path
 
 import numpy as np
 import torch
 import torch.optim as optim
 
 from torch.utils.data import DataLoader, Subset
-
 from tqdm import tqdm
 
 from data import PartNetVoxelDataset
@@ -25,7 +25,7 @@ def train(model, train_dataloader, args, logger, optimizer):
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
         for i, voxels in tqdm(
-            enumerate(train_dataloader, start=1), total=len(train_indices), leave=False
+            enumerate(train_dataloader, start=1), total=len(train_loader), leave=False
         ):
             optimizer.zero_grad()
             voxels = voxels.float().to(args.device)
@@ -43,6 +43,8 @@ def train(model, train_dataloader, args, logger, optimizer):
 
 
 if __name__ == "__main__":
+    root_path = Path(__file__).resolve()
+
     parser = argparse.ArgumentParser(
         description="Training script for VAE on subset of PartNet"
     )
@@ -52,20 +54,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-input",
         "--input_path",
-        default=os.path.join(
-            os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            ),
-            "shapenet",
-        ),
-        type=str,
+        default=root_path.parent.parent.parent / "shapenet",
+        type=Path,
         help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints"),
-        type=str,
+        default=root_path.parent / "checkpoints",
+        type=Path,
         help="The output directory to put saved checkpoints.",
     )
     parser.add_argument(
@@ -139,7 +136,7 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    os.makedirs(args.output_dir, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         format="%(levelname)s:%(name)s:%(asctime)s: %(message)s",
@@ -152,12 +149,10 @@ if __name__ == "__main__":
 
     args.device = torch.device(args.device)
     logger.info(f"Using device: {args.device}")
-    
-    dataset_file = h5py.File(os.path.join(args.input_path, "partnet_data.h5"), "r")
-    
-    dataset = PartNetVoxelDataset(dataset_file)
 
-    with open(os.path.join(args.input_path, "train_indexes.json"), "r") as f:
+    dataset = PartNetVoxelDataset(args.input_path / "partnet_data.h5")
+
+    with open(args.input_path / "train_indexes.json", "r") as f:
         train_indices = json.load(f)
 
     train_dataset = Subset(dataset, train_indices)
@@ -173,4 +168,3 @@ if __name__ == "__main__":
     )
     logger.info("Starting to train")
     train(model, train_loader, args, logger, optimizer)
-    dataset_file.close()
