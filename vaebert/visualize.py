@@ -3,12 +3,44 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.figure_factory as FF
+import seaborn as sns
 import skimage.measure as sm
 import torch
 
 from plotly.offline import plot
+from sklearn.manifold import TSNE
 
 
+def tsne(latents, data):
+    tsne = TSNE(
+        n_components=2, n_iter=1100, verbose=3, perplexity=40, learning_rate=200
+    )
+    lvects = tsne.fit_transform(latents)
+    data["tsne1"] = lvects[:, 0]
+    data["tsne2"] = lvects[:, 1]
+    plt.rcParams["figure.figsize"] = (12, 8)
+    sns.set_style("darkgrid")
+    ax = sns.scatterplot(
+        data=data,
+        x="tsne1",
+        y="tsne2",
+        hue="Category",
+        s=10,
+        linewidth=0,
+        palette="bright",
+    )
+    # Clear x axis stuff
+    ax.set(xticklabels=[])
+    ax.set(xlabel=None)
+    ax.tick_params(bottom=False)
+    # Clear y axis stuff
+    ax.set(yticklabels=[])
+    ax.set(ylabel=None)
+    ax.tick_params(left=False)
+    plt.show()
+
+
+# https://github.com/starstorms9/shape/blob/master/utils.py#L380
 def plotMesh(verts, faces):
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
@@ -73,7 +105,7 @@ def plotVox(
 
 def createMesh(vox, step=1, threshold=0.5):
     vox = np.pad(vox, step)
-    verts, faces, _, _ = sm.marching_cubes_lewiner(vox, threshold, step_size=step)
+    verts, faces, *_ = sm.marching_cubes(vox, threshold, step_size=step)
     return verts, faces
 
 
