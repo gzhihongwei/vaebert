@@ -31,9 +31,9 @@ def process_voxel(model, gaussian_kernel):
 
     # Center the voxels
     max_vals_by_axis = [
-        np.max(np.max(vox, axis=2), axis=1),
-        np.max(np.max(vox, axis=2), axis=0),
-        np.max(np.max(vox, axis=1), axis=0),
+        np.max(vox, axis=(2, 1)),
+        np.max(vox, axis=(2, 0)),
+        np.max(vox, axis=(1, 0)),
     ]
 
     for axis_idx in range(3):
@@ -41,12 +41,12 @@ def process_voxel(model, gaussian_kernel):
         last_significant_idx = 127
 
         for idx in range(128):
-            if round(max_vals_by_axis[axis_idx][idx]) > 0:
+            if max_vals_by_axis[axis_idx][idx] > 0:
                 first_significant_idx = idx
                 break
 
         for idx in reversed(range(128)):
-            if round(max_vals_by_axis[axis_idx][idx]) > 0:
+            if max_vals_by_axis[axis_idx][idx] > 0:
                 last_significant_idx = idx
                 break
 
@@ -150,13 +150,8 @@ if __name__ == "__main__":
 
     model_ids, category_ids, captions, filenames = zip(*models_info)
 
-    # https://github.com/starstorms9/shape/blob/ddbacbd0a9897ac6ca78a42a23732c34c13bda1a/utils.py#L303
-    x = np.arange(-6, 7, 1)
-    y = np.arange(-6, 7, 1)
-    z = np.arange(-6, 7, 1)
-    xx, yy, zz = np.meshgrid(x, y, z)
-
-    gaussian_kernel = np.exp(-(xx**2 + yy**2 + zz**2) / (2 * 1**2))
+    mesh_range = np.arange(-6, 7)
+    gaussian_kernel = np.exp(-(np.array(np.meshgrid(mesh_range, mesh_range, mesh_range)) ** 2).sum(axis=0) / 2)
 
     used_model_ids, used_category_ids, used_captions, used_voxels = [], [], [], []
     num_sparsity_under_001 = 0
