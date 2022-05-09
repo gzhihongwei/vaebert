@@ -29,6 +29,11 @@ def train(
     optimizer,
     scheduler,
 ):
+
+    if args.checkpoint_epoch > 0:
+        print("Starting with checkpoint", args.checkpoint_epoch)
+        model.load_state_dict(torch.load(os.path.join(args.output_dir, f"epoch{args.checkpoint_epoch}.pt")))
+
     criterion = nn.MSELoss()
     for epoch in tqdm(range(1, args.epochs + 1)):
         model.train()
@@ -51,7 +56,7 @@ def train(
             scheduler.step()
 
         if epoch % args.save_interval == 0:
-            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
+            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch + args.checkpoint_epoch}.pt")
 
 
 if __name__ == "__main__":
@@ -111,6 +116,13 @@ if __name__ == "__main__":
         default=20,
         type=int,
         help="The number of epochs to train the VAE for.",
+    )
+    parser.add_argument(
+        "-checkpoint",
+        "--checkpoint_epoch",
+        default=0,
+        type=int,
+        help="The checkpoint epoch to start with.",
     )
     parser.add_argument(
         "-batch",

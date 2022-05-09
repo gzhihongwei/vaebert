@@ -20,6 +20,11 @@ from vaebert.text.gru import GRUEncoder
 
 
 def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
+    
+    if args.checkpoint_epoch > 0:
+        print("Starting with checkpoint", args.checkpoint_epoch)
+        model.load_state_dict(torch.load(os.path.join(args.output_dir, f"epoch{args.checkpoint_epoch}.pt")))
+
     criterion = torch.nn.MSELoss()
     for epoch in tqdm(range(1, args.epochs + 1)):
         hidden_states = [
@@ -48,7 +53,7 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
         logger.info(f"Epoch: [{epoch}/{args.epochs}], Loss: {np.mean(losses):.3f}")
 
         if epoch % args.save_interval == 0:
-            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch}.pt")
+            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch + args.checkpoint_epoch}.pt")
 
 
 if __name__ == "__main__":
@@ -101,6 +106,13 @@ if __name__ == "__main__":
         default=1000,
         type=int,
         help="The number of epochs to train the GRUEncoder for.",
+    )
+    parser.add_argument(
+        "-checkpoint",
+        "--checkpoint_epoch",
+        default=0,
+        type=int,
+        help="The checkpoint epoch to start with.",
     )
     parser.add_argument(
         "-batch",
