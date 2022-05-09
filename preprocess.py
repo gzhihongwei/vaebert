@@ -145,7 +145,7 @@ if __name__ == "__main__":
             )
     models_info = sorted(
         list(models_info.values()), key=lambda m: str(m[1]) + str(m[0])
-    )
+    )[:500]
     print(len(models_info), "models found with captions.")
 
     model_ids, category_ids, captions, filenames = zip(*models_info)
@@ -215,9 +215,9 @@ if __name__ == "__main__":
     print("Number of test indexes:", len(test_indexes))
 
     with open(shapenet_path / "train_indexes.json", "w") as f:
-        json.dump(train_indexes, f)
+        json.dump([int(i) for i in train_indexes], f)
 
     with open(shapenet_path / "test_indexes.json", "w") as f:
-        json.dump(test_indexes, f)
+        json.dump([int(i) for i in test_indexes], f)
 
     print("Saved data.")

@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 import h5py
+import os
 
 from pathlib import Path
 

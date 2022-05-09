@@ -5,7 +5,7 @@
 2. Place these files in the "shapenet" folder in the project's root folder.
 3. Run "preprocess.py" to preprocess the files.
 4. Run "vaebert/vae/train.py" to train the vae. By default this will run for 20 epochs and save their checkpoints to the "vaebert/vae/checkpoints/" folder.
-5. Run "encode.py -checkpoint checkpoints/epoch20.pt" to encode latents vectors for the saved voxelization dataset from the 20th epoch.
+5. Run "vaebert/vae/encode.py -checkpoint vaebert/vae/checkpoints/epoch20.pt" to encode latents vectors for the saved voxelization dataset from the 20th epoch.
 6. Run "vaebert/text/bert/train.py" to train the BERT model. By default this will train for 20 epochs and save their checkpoints to the "vaebert/text/bert/checkpoints/" folder.
 7. Run "vaebert/text/gru/train.py" to train the GRU model. By default this will train for 1000 epochs and save their checkpoints to the "vaebert/text/gru/checkpoints/" folder.
 

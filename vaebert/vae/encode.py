@@ -72,7 +72,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=2,
+        default=0,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
