@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple
 
 import h5py
 import numpy as np
@@ -29,6 +29,6 @@ class PartNetTextVoxelDataset(Dataset):
         return len(self.shapenet)
 
 
-def collate_fn(batch):
+def collate_fn(batch: List[Tuple[any]]):
     captions, tensors = zip(*batch)
     return list(captions), torch.from_numpy(np.array(tensors))

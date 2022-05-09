@@ -7,25 +7,40 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 
 from torch.utils.data import DataLoader, Subset
 
 from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
+from transformers.tokenization_utils import PreTrainedTokenizerBase
+from transformers.models.bert.modeling_bert import BertPreTrainedModel
 
-from vaebert import collate_fn
-from vaebert.text import PartNetTextLatentDataset
+from vaebert.data import collate_fn
+from vaebert.text.data import PartNetTextLatentDataset
 from vaebert.text.gru import GRUEncoder
 
 
-def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
-    
+def train(
+    model: nn.Module,
+    bert: BertPreTrainedModel,
+    tokenizer: PreTrainedTokenizerBase,
+    train_dataloader: DataLoader,
+    args: argparse.Namespace,
+    logger: logging.Logger,
+    optimizer: optim.Optimizer,
+) -> None:
     if args.checkpoint_epoch > 0:
-        print("Starting with checkpoint", args.checkpoint_epoch)
-        model.load_state_dict(torch.load(os.path.join(args.output_dir, f"epoch{args.checkpoint_epoch}.pt")))
+        logger.info(f"Starting with checkpoint {args.checkpoint_epoch}")
+        model.load_state_dict(
+            torch.load(str(args.output_dir / f"epoch{args.checkpoint_epoch}.pt"))
+        )
 
-    criterion = torch.nn.MSELoss()
+    model.train()
+
+    criterion = nn.MSELoss()
+
     for epoch in tqdm(range(1, args.epochs + 1)):
         hidden_states = [
             torch.zeros(2, args.batch_size, 64).to(args.device),
@@ -33,6 +48,7 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
             torch.zeros(2, args.batch_size, 256).to(args.device),
         ]
         losses = []
+
         for captions, latents in tqdm(
             train_dataloader,
             total=len(train_dataloader),
@@ -53,11 +69,14 @@ def train(model, bert, tokenizer, train_dataloader, args, logger, optimizer):
         logger.info(f"Epoch: [{epoch}/{args.epochs}], Loss: {np.mean(losses):.3f}")
 
         if epoch % args.save_interval == 0:
-            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch + args.checkpoint_epoch}.pt")
+            torch.save(
+                model.state_dict(),
+                str(args.output_dir / f"epoch{epoch + args.checkpoint_epoch}.pt"),
+            )
 
 
 if __name__ == "__main__":
-    root_path = Path(__file__).resolve()
+    root_path = Path(__file__).resolve().parent
 
     parser = argparse.ArgumentParser(
         description="Training script for VAE on subset of PartNet"
@@ -68,14 +87,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "-input",
         "--input_path",
-        default=root_path.parent.parent.parent.parent / "shapenet",
+        default=root_path.parent.parent.parent / "shapenet",
         type=Path,
         help="Path to the dataset.",
     )
     parser.add_argument(
         "-output",
         "--output_dir",
-        default=root_path.parent / "checkpoints",
+        default=root_path / "checkpoints",
         type=Path,
         help="The output directory to put saved checkpoints.",
     )
@@ -131,8 +150,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-device",
         "--device",
-        default="cuda",
-        type=str,
+        default=torch.device("cuda"),
+        type=torch.device,
         help="Which device to put everything on",
     )
     parser.add_argument(
@@ -157,9 +176,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
 
     logger.info(args)
-
-    args.device = torch.device(args.device)
-    logger.info(f"Using device: {args.device}")
 
     dataset = PartNetTextLatentDataset(args.input_path / "partnet_data.h5")
 

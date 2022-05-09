@@ -10,11 +10,14 @@ import h5py
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 
 from torch.utils.data import DataLoader, Subset
 
 from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
+from transformers.tokenization_utils import PreTrainedTokenizerBase
+from transformers.models.bert.modeling_bert import BertPreTrainedModel
 
 from vaebert import chamfer_dist, plotVox, tsne
 from vaebert.data import collate_fn, PartNetTextVoxelDataset
@@ -22,7 +25,16 @@ from vaebert.text import BERTEncoder, GRUEncoder
 from vaebert.vae import VAE
 
 
-def test(bert_encoder, bert, gru_encoder, vae, args, test_loader, logger, tokenizer):
+def test(
+    bert_encoder: nn.Module,
+    bert: BertPreTrainedModel,
+    gru_encoder: nn.Module,
+    vae: nn.Module,
+    args: argparse.Namespace,
+    test_loader: DataLoader,
+    logger: logging.Logger,
+    tokenizer: PreTrainedTokenizerBase,
+) -> None:
     bert_encoder.eval()
     bert.eval()
     gru_encoder.eval()
@@ -56,15 +68,24 @@ def test(bert_encoder, bert, gru_encoder, vae, args, test_loader, logger, tokeni
         metrics["bert"]["chamfer"].append(chamfer_dist(bert_voxel, voxel))
         metrics["gru"]["chamfer"].append(chamfer_dist(gru_voxel, voxel))
 
-    metrics["bert"]["chamfer"] = np.mean(metrics["bert"]["chamfer"])
-    metrics["gru"]["chamfer"] = np.mean(metrics["gru"]["chamfer"])
+    bert_metrics = metrics.pop("bert")
+    metrics["bert"] = dict(chamfer=np.mean(bert_metrics["chamfer"]))
+    gru_metrics = metrics.pop("gru")
+    metrics["gru"] = dict(chamfer=np.mean(gru_metrics["chamfer"]))
 
     logger.info(metrics)
 
 
 def compare_reconstructions(
-    bert_encoder, bert, gru_encoder, vae, args, test_df, tokenizer
-):
+    bert_encoder: nn.Module,
+    bert: BertPreTrainedModel,
+    gru_encoder: nn.Module,
+    vae: nn.Module,
+    args: argparse.Namespace,
+    test_df: pd.DataFrame,
+    logger: logging.Logger,
+    tokenizer: PreTrainedTokenizerBase,
+) -> None:
     bert_encoder.eval()
     bert.eval()
     gru_encoder.eval()
@@ -93,7 +114,7 @@ def compare_reconstructions(
             gru_output, _ = gru_encoder(bert_embed, seq_lengths, hidden_states)
             gru_voxel = vae.decode(gru_output, apply_sigmoid=True)
 
-        print(row["captions"])
+        logger.info(row["captions"])
 
         plotVox(
             row["voxels"],
@@ -263,5 +284,5 @@ if __name__ == "__main__":
 
     sampled_df = test_df.groupby("category_ids").agg(pd.DataFrame.sample)
     compare_reconstructions(
-        bert_encoder, bert, gru_encoder, vae, args, sampled_df, tokenizer
+        bert_encoder, bert, gru_encoder, vae, args, sampled_df, logger, tokenizer
     )

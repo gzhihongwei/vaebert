@@ -5,7 +5,7 @@ from transformers import BertModel
 
 
 class BERTEncoder(nn.Module):
-    def __init__(self, latent_dim: int):
+    def __init__(self, latent_dim: int) -> None:
         super().__init__()
 
         dropout_rate = 0.15

@@ -1,3 +1,4 @@
+wheel
 h5py
 matplotlib
 plotly

@@ -1,4 +1,4 @@
 from .data import PartNetTextLatentDataset
 
-from .bert import BERTEncoder
-from .gru import GRUEncoder
+from .bert import *
+from .gru import *

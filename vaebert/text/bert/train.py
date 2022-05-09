@@ -7,36 +7,40 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import torch.optim as optim
 import torch.nn as nn
+import torch.optim as optim
 
 from torch.utils.data import DataLoader, Subset
 
 from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
+from transformers.tokenization_utils import PreTrainedTokenizerBase
 
-from vaebert import collate_fn
-from vaebert.text import PartNetTextLatentDataset
+from vaebert.data import collate_fn
 from vaebert.text.bert import BERTEncoder
+from vaebert.text.data import PartNetTextLatentDataset
 
 
 def train(
-    model,
-    tokenizer,
-    train_dataloader,
-    args,
-    logger,
-    optimizer,
-    scheduler,
-):
-
+    model: nn.Module,
+    tokenizer: PreTrainedTokenizerBase,
+    train_dataloader: DataLoader,
+    args: argparse.Namespace,
+    logger: logging.Logger,
+    optimizer: optim.Optimizer,
+    scheduler: optim.lr_scheduler.LambdaLR,
+) -> None:
     if args.checkpoint_epoch > 0:
-        print("Starting with checkpoint", args.checkpoint_epoch)
-        model.load_state_dict(torch.load(os.path.join(args.output_dir, f"epoch{args.checkpoint_epoch}.pt")))
+        logger.info(f"Starting with checkpoint {args.checkpoint_epoch}")
+        model.load_state_dict(
+            torch.load(str(args.output_dir / f"epoch{args.checkpoint_epoch}.pt"))
+        )
+
+    model.train()
 
     criterion = nn.MSELoss()
+
     for epoch in tqdm(range(1, args.epochs + 1)):
-        model.train()
         for i, (captions, latents) in tqdm(
             enumerate(train_dataloader, start=1),
             total=len(train_dataloader),
@@ -56,7 +60,10 @@ def train(
             scheduler.step()
 
         if epoch % args.save_interval == 0:
-            torch.save(model.state_dict(), args.output_dir / f"epoch{epoch + args.checkpoint_epoch}.pt")
+            torch.save(
+                model.state_dict(),
+                str(args.output_dir / f"epoch{epoch + args.checkpoint_epoch}.pt"),
+            )
 
 
 if __name__ == "__main__":
@@ -134,15 +141,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=0,
+        default=2,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
     parser.add_argument(
         "-device",
         "--device",
-        default="cuda",
-        type=str,
+        default=torch.device("cuda"),
+        type=torch.device,
         help="Which device to put everything on",
     )
     parser.add_argument(
@@ -167,10 +174,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
 
     logger.info(args)
-
-    args.device = torch.device(args.device)
-
-    logger.info(f"Using device: {args.device}")
 
     dataset = PartNetTextLatentDataset(args.input_path / "partnet_data.h5")
 
@@ -201,5 +204,5 @@ if __name__ == "__main__":
         num_training_steps=num_training_steps,
     )
 
-    logger.info("Starting to train")
-    train(model, train_loader, args, logger, optimizer, scheduler)
+    logger.info("Starting to fine-tune")
+    train(model, tokenizer, train_loader, args, logger, optimizer, scheduler)

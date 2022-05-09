@@ -128,32 +128,15 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# ignore zips
-*.zip
-*.7z
+# ignore .DS_Store
+.DS_Store
 
-# ignore hdf5 files
-*.hdf5
-
-# ignore json files
-*.json
-
-# pdfs
-*.pdf
+# ignore hidden IDE folders
+.idea/
+.vscode/
 
 # ignore data folder
-data/
-model_data/
-ShapeNetCore.v2/
-data_v0/
-*.binvox
-*.pt
-*.exe
-*.xml
-*.iml
-.idea/
+shapenet/
 
-# MacOS hidden file
-**/.DS_Store
-*.pkl
-*.h5
+# ignore the checkpoints
+checkpoints/

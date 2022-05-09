@@ -1,11 +1,20 @@
 import math
 
+from numbers import Number
+from typing import List, Optional, Sequence, Tuple, Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-def conv3d_same_padding(in_channels, out_channels, input_size, kernel_size, stride=1):
+def conv3d_same_padding(
+    in_channels: int,
+    out_channels: int,
+    input_size: Union[int, Sequence[int]],
+    kernel_size: Union[int, Sequence[int]],
+    stride: Optional[Union[int, Sequence[int]]] = 1,
+) -> List[nn.Module]:
     if isinstance(input_size, int):
         input_size = (input_size,) * 3
 
@@ -15,7 +24,7 @@ def conv3d_same_padding(in_channels, out_channels, input_size, kernel_size, stri
     if isinstance(stride, int):
         stride = (stride,) * 3
 
-    def _padding_calculation(axis):
+    def _padding_calculation(axis: int) -> int:
         input_axis_size = input_size[axis]
         kernel_axis_size = kernel_size[axis]
         stride_axis_size = stride[axis]
@@ -48,8 +57,12 @@ def conv3d_same_padding(in_channels, out_channels, input_size, kernel_size, stri
 
 
 def convtranspose3d_same_padding(
-    in_channels, out_channels, input_size, kernel_size, stride=1
-):
+    in_channels: int,
+    out_channels: int,
+    input_size: Union[int, Sequence[int]],
+    kernel_size: Union[int, Sequence[int]],
+    stride: Optional[Union[int, Sequence[int]]] = 1,
+) -> List[nn.Module]:
     if isinstance(input_size, int):
         input_size = (input_size,) * 3
 
@@ -59,7 +72,7 @@ def convtranspose3d_same_padding(
     if isinstance(stride, int):
         stride = (stride,) * 3
 
-    def _padding_calculation(axis):
+    def _padding_calculation(axis: int) -> float:
         input_axis_size = input_size[axis]
         kernel_axis_size = kernel_size[axis]
         stride_axis_size = stride[axis]
@@ -144,38 +157,52 @@ class VAE(nn.Module):
 
         self.N = torch.distributions.Normal(0, 1)
 
-    def reconstruct(self, x):
+    def reconstruct(self, x: torch.Tensor) -> torch.Tensor:
         mean, logvar = self.encode(x)
         z = self.reparameterize(mean, logvar)
         x_logits = self.decode(z)
         probs = torch.sigmoid(x_logits)
         return probs
 
-    def sample(self, eps=None):
+    def sample(self, eps: Optional[torch.Tensor] = None) -> torch.Tensor:
         if eps is None:
             eps = self.N.sample((5, self.latent_dim))
+
         return self.decode(eps, apply_sigmoid=True)
 
-    def encode(self, x, reparam=False):
+    def encode(
+        self, x: torch.Tensor, reparam: Optional[bool] = False
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         mean, logvar = self.enc_model(x).chunk(2, dim=-1)
+
         if reparam:
             return self.reparameterize(mean, logvar)
+
         return mean, logvar
 
-    def reparameterize(self, mean, logvar):
+    def reparameterize(self, mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
         eps = self.N.sample(mean.shape).to(mean.device)
         return eps * torch.exp(logvar * 0.5) + mean
 
-    def decode(self, z, apply_sigmoid=False):
+    def decode(
+        self, z: torch.Tensor, apply_sigmoid: Optional[bool] = False
+    ) -> torch.Tensor:
         z = self.latent_gen(z)
         z = z.reshape(-1, self.reshape_channels, *((self.gen_init_size,) * 3))
         logits = self.gen_model(z)
+
         if apply_sigmoid:
             probs = torch.sigmoid(logits)
             return probs
+
         return logits
 
-    def log_normal_pdf(self, sample, mean, logvar):
+    def log_normal_pdf(
+        self,
+        sample: torch.Tensor,
+        mean: Union[Number, torch.Tensor],
+        logvar: Union[Number, torch.Tensor],
+    ) -> torch.Tensor:
         if not isinstance(logvar, torch.Tensor):
             logvar = torch.tensor(logvar)
 
@@ -184,7 +211,7 @@ class VAE(nn.Module):
             -0.5 * ((sample - mean) ** 2.0 * torch.exp(-logvar) + logvar + log2pi)
         ).sum(dim=-1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         mean, logvar = self.encode(x)
         z = self.reparameterize(mean, logvar)
         x_logit = self.decode(z)

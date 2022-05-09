@@ -4,7 +4,7 @@ import torch
 from scipy.spatial import KDTree
 
 
-def chamfer_dist(x, y):
+def chamfer_dist(x: torch.Tensor, y: torch.Tensor) -> float:
     # convert x and y to binary (integer) torch tensor
     x = x.cpu().numpy().squeeze().round().astype(np.int8)
     y = y.cpu().numpy().squeeze().round().astype(np.int8)

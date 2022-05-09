@@ -1,30 +1,30 @@
 import argparse
-import collections
-import json
 import logging
 import sys
 
 from pathlib import Path
 
-import h5py
-import numpy as np
-import pandas as pd
 import torch
+import torch.nn as nn
 
-from torch.utils.data import DataLoader, Subset
-
-from tqdm import tqdm
 from transformers import AutoTokenizer, BertModel
+from transformers.tokenization_utils import PreTrainedTokenizerBase
+from transformers.models.bert.modeling_bert import BertPreTrainedModel
 
-from vaebert import chamfer_dist, plotVox, tsne
-from vaebert.data import collate_fn, PartNetTextVoxelDataset
+from vaebert import plotVox
 from vaebert.text import BERTEncoder, GRUEncoder
 from vaebert.vae import VAE
 
 
 def compare_reconstructions(
-    bert_encoder, bert, gru_encoder, vae, args, tokenizer
-):
+    bert_encoder: nn.Module,
+    bert: BertPreTrainedModel,
+    gru_encoder: nn.Module,
+    vae: nn.Module,
+    args: argparse.Namespace,
+    logger: logging.Logger,
+    tokenizer: PreTrainedTokenizerBase,
+) -> None:
     bert_encoder.eval()
     bert.eval()
     gru_encoder.eval()
@@ -39,13 +39,18 @@ def compare_reconstructions(
     ]
 
     while True:
-        caption = input("Enter a caption (optionally add \">\" followed by voxel threshold): ")
+        caption = input(
+            'Enter a caption (optionally add ">" followed by voxel threshold): '
+        )
+        if caption == "":
+            break
+
         threshold = 0.5
+
         if len(caption.split(">")) > 1:
             threshold = float(caption.split(">")[1].strip())
             caption = caption.split(">")[0].strip()
-        if caption == "":
-            break
+
         inputs = tokenizer(
             caption, padding=True, truncation=True, return_tensors="pt"
         ).to(args.device)
@@ -60,12 +65,12 @@ def compare_reconstructions(
             gru_output, _ = gru_encoder(bert_embed, seq_lengths, hidden_states)
             gru_voxel = vae.decode(gru_output, apply_sigmoid=True)
 
-        print(caption)
-        
+        logger.info(caption)
+
         plotVox(
             bert_voxel.cpu().numpy(),
             step=1,
-            title=f"BERT Encoder Reconstruction for \"{caption}\"",
+            title=f'BERT Encoder Reconstruction for "{caption}"',
             threshold=threshold,
             show_axes=False,
             limits=limits,
@@ -73,7 +78,7 @@ def compare_reconstructions(
         plotVox(
             gru_voxel.cpu().numpy(),
             step=1,
-            title=f"GRU Encoder Reconstruction for \"{caption}\"",
+            title=f'GRU Encoder Reconstruction for "{caption}"',
             threshold=threshold,
             show_axes=False,
             limits=limits,
@@ -145,6 +150,4 @@ if __name__ == "__main__":
     vae = VAE(args.latent_dim, args.vox_size).to(args.device)
     vae.load_state_dict(torch.load(args.checkpoint_paths[2], map_location=args.device))
 
-    compare_reconstructions(
-        bert_encoder, bert, gru_encoder, vae, args, tokenizer
-    )
+    compare_reconstructions(bert_encoder, bert, gru_encoder, vae, args, tokenizer)

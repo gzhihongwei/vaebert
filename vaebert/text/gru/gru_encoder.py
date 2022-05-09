@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class GRUEncoder(nn.Module):
-    def __init__(self, bert_hidden_size, latent_dim):
+    def __init__(self, bert_hidden_size: int, latent_dim: int) -> None:
         super().__init__()
 
         dropout_rate = 0.15
@@ -43,7 +43,7 @@ class GRUEncoder(nn.Module):
         self,
         bert_embed: torch.Tensor,
         seq_lengths: torch.Tensor,
-        hidden_states: List[torch.Tensor] = None,
+        hidden_states: List[torch.Tensor],
     ) -> torch.Tensor:
         # https://discuss.pytorch.org/t/spatial-dropout-in-pytorch/21400/2
         bert_embed = bert_embed.permute(0, 2, 1)

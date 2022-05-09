@@ -1,18 +1,20 @@
 import argparse
 import os
 
-import h5py
 import numpy as np
 import torch
+import torch.nn as nn
 
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from data import PartNetVoxelDataset
-from vae import VAE
+from vaebert.vae.data import PartNetVoxelDataset
+from vaebert.vae.vae import VAE
 
 
-def encode_binvoxes(model, dataloader, args):
+def encode_binvoxes(
+    model: nn.Module, dataloader: DataLoader, args: argparse.Namespace
+) -> None:
     model.eval()
 
     latents = np.empty((0, args.latent_dim))
@@ -72,7 +74,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-num_workers",
         "--num_workers",
-        default=0,
+        default=2,
         type=int,
         help="Number of additional subprocesses loading data.",
     )
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(args.checkpoint_path, map_location=args.device))
 
     dataset = PartNetVoxelDataset(args.input_path)
-    
+
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,

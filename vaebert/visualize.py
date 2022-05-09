@@ -1,17 +1,19 @@
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
-import plotly.figure_factory as FF
+import pandas as pd
 import seaborn as sns
-import skimage.measure as sm
 import torch
+
+import matplotlib.pyplot as plt
+import skimage.measure as sm
+import plotly.figure_factory as FF
 
 from plotly.offline import plot
 from sklearn.manifold import TSNE
 
 
-def tsne(latents, data):
+def tsne(latents: np.ndarray, data: pd.DataFrame) -> None:
     tsne = TSNE(
         n_components=2, n_iter=1100, verbose=3, perplexity=40, learning_rate=200
     )
