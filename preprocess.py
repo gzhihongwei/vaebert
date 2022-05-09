@@ -12,6 +12,8 @@ import h5py
 import numpy as np
 import torch
 
+from sklearn.model_selection import train_test_split
+
 from scipy import signal
 
 
@@ -212,30 +214,7 @@ if __name__ == "__main__":
         )
         hf.create_dataset("model_ids", data=np_model_ids)
 
-    current_cat_id = ""
-    cat_ids = []
-    indexes = []
-    for i, category_id in enumerate(used_category_ids):
-        if cat_id != current_cat_id:
-            cat_ids.append(cat_id)
-            indexes.append(i)
-            current_cat_id = cat_id
-
-    indexes.append(len(used_category_ids))
-    cat_id_suffled_ranges = []
-
-    for i in range(len(indexes) - 1):
-        cat_range = [j for j in range(indexes[i], indexes[i + 1])]
-        random.shuffle(cat_range)
-        cat_id_suffled_ranges.append(cat_range)
-
-    train_indexes = []
-    test_indexes = []
-
-    for cat_range in cat_id_suffled_ranges:
-        train_number = int(len(cat_range) * 0.9)
-        train_indexes.extend(cat_range[:train_number])
-        test_indexes.extend(cat_range[train_number:])
+    train_indexes, test_indexes, _, _ = train_test_split(np.arange(len(np_category_ids)), np_category_ids, test_size=0.1)
 
     print("Number of train indexes:", len(train_indexes))
     print("Number of test indexes:", len(test_indexes))
